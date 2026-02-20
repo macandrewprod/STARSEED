@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STARSEED - Final Sequence</title>
+    <title>STARSEED - The Record</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -51,10 +51,13 @@ const music = new Audio(); music.src = "music.mp3"; music.loop = true;
 
 // --- VARIABLES ---
 let gamePlaying = false;
-let isDead = false; // New state to track if we just died
+let isDead = false;
 let frames = 0;
 let score = 0;
 let finalScore = 0;
+
+// HIGH SCORE LOGIC: Checks the browser's "memory" for a saved record
+let highScore = localStorage.getItem("starseedHighScore") || 0;
 
 // --- STARFIELD ---
 const starfield = {
@@ -99,8 +102,7 @@ const bird = {
     },
     update: function() {
         if (!gamePlaying && !isDead) { this.y = 280 + Math.cos(frames/15) * 10; return; }
-        if (isDead) return; // Freeze position on death
-        
+        if (isDead) return;
         this.speed += this.gravity;
         this.y += this.speed;
         if (this.y + this.h >= gameHeight || this.y <= 0) { gameOver(); }
@@ -164,12 +166,18 @@ function draw(){
     pipes.draw(); 
     bird.draw();
 
-    // LIVE SCORE
+    // HUD: LIVE SCORE & HIGH SCORE
     if (gamePlaying) {
         ctx.fillStyle = "#28ff28"; 
         ctx.font = "bold 38px Courier New";
         ctx.textAlign = "center";
         ctx.fillText(score, gameWidth/2, 70);
+
+        // SMALL HIGH SCORE IN TOP RIGHT
+        ctx.fillStyle = "rgba(40, 255, 40, 0.6)";
+        ctx.font = "bold 14px Courier New";
+        ctx.textAlign = "right";
+        ctx.fillText("BEST: " + highScore, gameWidth - 15, 25);
     }
 
     // START SCREEN
@@ -178,6 +186,11 @@ function draw(){
         ctx.font = "bold 22px Courier New";
         ctx.textAlign = "center";
         ctx.fillText("INITIATE SEQUENCE", gameWidth/2, gameHeight/2 + 50);
+        
+        // SHOW BEST ON START SCREEN
+        ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+        ctx.font = "bold 14px Courier New";
+        ctx.fillText("SYSTEM RECORD: " + highScore, gameWidth/2, gameHeight/2 + 80);
     }
 
     // DEATH SCREEN
@@ -194,9 +207,16 @@ function draw(){
         ctx.font = "bold 45px Courier New";
         ctx.fillText("SCORE: " + finalScore, gameWidth/2, gameHeight/2 + 20);
         
+        // NEW RECORD ALERT
+        if(finalScore >= highScore && finalScore > 0) {
+            ctx.fillStyle = "#28ff28";
+            ctx.font = "bold 14px Courier New";
+            ctx.fillText("NEW SYSTEM RECORD DETECTED", gameWidth/2, gameHeight/2 + 45);
+        }
+
         ctx.fillStyle = "rgba(40, 255, 40, 0.8)";
         ctx.font = "bold 16px Courier New";
-        ctx.fillText("TAP TO RE-INITIATE", gameWidth/2, gameHeight/2 + 70);
+        ctx.fillText("TAP TO RE-INITIATE", gameWidth/2, gameHeight/2 + 85);
     }
 }
 
@@ -204,17 +224,22 @@ function loop(){ starfield.update(); bird.update(); pipes.update(); draw(); fram
 
 function gameOver(){
     gamePlaying = false;
-    isDead = true; // Trigger the death screen
+    isDead = true;
     finalScore = score;
+
+    // SAVE HIGH SCORE TO LOCALSTORAGE
+    if(score > highScore) {
+        highScore = score;
+        localStorage.setItem("starseedHighScore", highScore);
+    }
+
     music.pause();
     music.currentTime = 0;
 }
 
 function handleAction(e) {
     if (e && e.type === "touchstart") e.preventDefault();
-    
     if(isDead) {
-        // Reset everything for the new run
         isDead = false;
         bird.y = 280;
         bird.speed = 0;
@@ -225,7 +250,6 @@ function handleAction(e) {
         frames = 0;
         return;
     }
-
     if(!gamePlaying){
         gamePlaying = true;
         music.play().catch(() => {});
