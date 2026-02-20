@@ -335,44 +335,43 @@ const vesselTrail = {
     }
 };
 
-// --- VESSEL 2: FIRE AURA ---
-const fireAura = {
+// --- VESSEL 2: "47" NUMBER TRAIL ---
+const numberTrail = {
     particles: [],
+    spawnTimer: 0,
     spawn: function(x, y, w, h) {
-        // Spawn multiple fire particles per frame for a thick, roaring effect
-        for(let i = 0; i < 3; i++) {
-            this.particles.push({
-                x: x + 5 + Math.random() * (w - 10), // Randomly across the body
-                y: y + h - (Math.random() * 15), // Spawn near the bottom/exhaust
-                vx: (Math.random() - 0.5) * 1.5 - 1.5, // Drift slightly backward
-                vy: (Math.random() * -3) - 1, // Drift aggressively UPWARD
-                size: Math.random() * 8 + 4, // Large flames shrinking down
-                color: ['#ffcc00', '#ff6600', '#ff3300', '#cc0000'][Math.floor(Math.random() * 4)], // Yellow to Red
-                alpha: 0.8,
-                decay: 0.04 + Math.random() * 0.04
-            });
-        }
+        this.spawnTimer++;
+        if (this.spawnTimer % 3 !== 0) return; // Lower spawn rate for numbers shouldn't be too crowded
+        this.particles.push({
+            x: x + 5, 
+            y: y + h / 2 + (Math.random() * 10 - 5),
+            text: Math.random() > 0.5 ? "4" : "7", // Randomly choose 4 or 7
+            vx: (Math.random() - 1.5) * 2.0, // Drift backward
+            vy: (Math.random() - 0.5) * 1.0, // Slight vertical scatter
+            size: Math.floor(Math.random() * 6 + 10), // Random font size 10-16px
+            alpha: 1.0,
+            decay: 0.02 + Math.random() * 0.02
+        });
     },
     update: function() {
+        let globalSpeed = (gamePlaying || isDead || isDying) ? 2.5 : 0.3;
         for (let i = this.particles.length - 1; i >= 0; i--) {
             let p = this.particles[i];
-            p.x += p.vx; 
-            p.y += p.vy; 
-            p.size -= 0.15; // Flames shrink as they rise
-            p.alpha -= p.decay; // Flames burn out
-            if (p.alpha <= 0 || p.size <= 0) { this.particles.splice(i, 1); }
+            p.x -= (globalSpeed * 1.0) + p.vx; 
+            p.y += p.vy;
+            p.alpha -= p.decay;
+            if (p.alpha <= 0 || p.x < -20) { this.particles.splice(i, 1); }
         }
     },
     draw: function() {
         if (this.particles.length === 0) return;
         ctx.save(); 
-        ctx.globalCompositeOperation = "lighter"; // Additive blending makes the overlapping flames burn neon bright
+        ctx.globalCompositeOperation = "lighter"; 
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
         for (let p of this.particles) {
-            ctx.fillStyle = p.color;
-            ctx.globalAlpha = p.alpha; 
-            ctx.beginPath(); 
-            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); 
-            ctx.fill();
+            ctx.font = `bold ${p.size}px Courier New`;
+            ctx.fillStyle = `rgba(40, 255, 40, ${p.alpha})`;
+            ctx.fillText(p.text, p.x, p.y);
         }
         ctx.restore();
     }
@@ -394,13 +393,14 @@ const bird = {
         ctx.restore();
     },
     update: function() {
-        // Trigger the correct particle system based on selected vessel
+        // DYNAMIC ASPECT RATIO FIX
+        if (selectedBird === 1) { this.w = 55; this.h = 65; } 
+        else { this.w = 60; this.h = 60; } // Square dimensions for Vessel 2
+
+        // TRIGGER TRAIL SYSTEMS based on vessel selection
         if (gamePlaying || isDying || (!gamePlaying && !isDead && !isDying)) { 
-            if (selectedBird === 1) {
-                vesselTrail.spawn(this.x, this.y, this.w, this.h); 
-            } else if (selectedBird === 2) {
-                fireAura.spawn(this.x, this.y, this.w, this.h);
-            }
+            if (selectedBird === 1) { vesselTrail.spawn(this.x, this.y, this.w, this.h); } 
+            else if (selectedBird === 2) { numberTrail.spawn(this.x, this.y, this.w, this.h); }
         }
 
         if (!gamePlaying && !isDead && !isDying) { this.y = 180 + Math.cos(frames/15) * 10; return; }
@@ -491,9 +491,9 @@ function draw(){
     
     starfield.draw(); 
     
-    // Update and draw the respective particle systems BEFORE the bird so it acts as a trail/aura
+    // Update and draw trail systems
     vesselTrail.update(); vesselTrail.draw(); 
-    fireAura.update(); fireAura.draw();
+    numberTrail.update(); numberTrail.draw();
     
     pipes.draw(); bird.draw();
 
@@ -561,7 +561,7 @@ function handleAction(e) {
 
         justUnlockedBird2 = false; isDead = false; bird.y = 180; bird.speed = 0; pipes.position = [];
         pipes.dx = 3.5; pipes.gap = 140; pipes.opacity = 1.0; score = 0; frames = 0; hueShift = 0; cvs.style.filter = `hue-rotate(0deg)`; 
-        vesselTrail.particles = []; fireAura.particles = [];
+        vesselTrail.particles = []; numberTrail.particles = [];
         return;
     }
     
