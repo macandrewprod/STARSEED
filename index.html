@@ -230,66 +230,42 @@ saveUserBtn.addEventListener("click", () => {
     let val = usernameInput.value.trim().toUpperCase();
     if (val.length > 0) {
         saveUserBtn.innerText = "SYNCING...";
-        
         db.ref('leaderboard/' + val).once('value').then((snapshot) => {
             if (!snapshot.exists()) {
-                // Completely new user
                 db.ref('leaderboard/' + val).set({ score: 0 });
-                highScore = 0;
-                bird2Unlocked = false;
-                selectedBird = 1;
+                highScore = 0; bird2Unlocked = false; selectedBird = 1;
             } else {
-                // Existing user - Download their high score and unlocks
                 let cloudScore = snapshot.val().score || 0;
                 highScore = cloudScore;
-                
-                if (cloudScore >= 47) {
-                    bird2Unlocked = true;
-                    localStorage.setItem("bird2Unlocked", "true");
-                } else {
-                    bird2Unlocked = false;
-                    localStorage.removeItem("bird2Unlocked");
-                    selectedBird = 1;
-                }
+                if (cloudScore >= 47) { bird2Unlocked = true; localStorage.setItem("bird2Unlocked", "true"); } 
+                else { bird2Unlocked = false; localStorage.removeItem("bird2Unlocked"); selectedBird = 1; }
             }
-            
             username = val; 
             localStorage.setItem("starseedUsername", username);
             localStorage.setItem("starseedHighScore", highScore);
-            
             loginUI.classList.add("hidden"); 
             saveUserBtn.innerText = "SYNC IDENTITY";
-        }).catch((error) => { 
-            alert("NETWORK ERROR. TRY AGAIN."); 
-            saveUserBtn.innerText = "SYNC IDENTITY"; 
-        });
+        }).catch((error) => { alert("NETWORK ERROR. TRY AGAIN."); saveUserBtn.innerText = "SYNC IDENTITY"; });
     }
 });
 
 // Switch User Logic
 switchUserBtn.addEventListener("click", () => {
-    username = "";
-    localStorage.removeItem("starseedUsername");
-    usernameInput.value = "";
-    mainMenuUI.classList.add("hidden");
-    loginUI.classList.remove("hidden");
+    username = ""; localStorage.removeItem("starseedUsername"); usernameInput.value = "";
+    mainMenuUI.classList.add("hidden"); loginUI.classList.remove("hidden");
 });
 
 function openMainMenu() {
-    isViewingUI = true;
-    updateVesselMenu();
-    mainMenuUI.classList.remove("hidden");
+    isViewingUI = true; updateVesselMenu(); mainMenuUI.classList.remove("hidden");
 }
 
 closeMenuBtn.addEventListener("click", () => {
-    mainMenuUI.classList.add("hidden");
-    setTimeout(() => { isViewingUI = false; }, 100);
+    mainMenuUI.classList.add("hidden"); setTimeout(() => { isViewingUI = false; }, 100);
 });
 
 function updateVesselMenu() {
     if (selectedBird === 1) { v1Select.classList.add("active"); v2Select.classList.remove("active"); } 
     else { v2Select.classList.add("active"); v1Select.classList.remove("active"); }
-    
     if (bird2Unlocked) { imgV2.style.opacity = "1"; v2Lock.style.display = "none"; } 
     else { imgV2.style.opacity = "0.3"; v2Lock.style.display = "block"; }
 }
@@ -298,13 +274,9 @@ v1Select.addEventListener("click", () => { selectedBird = 1; updateVesselMenu();
 v2Select.addEventListener("click", () => { if (bird2Unlocked) { selectedBird = 2; updateVesselMenu(); } });
 
 menuMuteBtn.addEventListener("click", () => {
-    isMuted = !isMuted;
-    music.muted = isMuted; sound47.muted = isMuted;
-    if (isMuted) {
-        menuMuteBtn.innerText = "AUDIO: OFF"; menuMuteBtn.style.color = "#ff2828"; menuMuteBtn.style.borderColor = "#ff2828";
-    } else {
-        menuMuteBtn.innerText = "AUDIO: ON"; menuMuteBtn.style.color = "#28ff28"; menuMuteBtn.style.borderColor = "#28ff28";
-    }
+    isMuted = !isMuted; music.muted = isMuted; sound47.muted = isMuted;
+    if (isMuted) { menuMuteBtn.innerText = "AUDIO: OFF"; menuMuteBtn.style.color = "#ff2828"; menuMuteBtn.style.borderColor = "#ff2828"; } 
+    else { menuMuteBtn.innerText = "AUDIO: ON"; menuMuteBtn.style.color = "#28ff28"; menuMuteBtn.style.borderColor = "#28ff28"; }
 });
 
 menuLbBtn.addEventListener("click", () => { mainMenuUI.classList.add("hidden"); lbUI.classList.remove("hidden"); renderLeaderboard(); });
@@ -343,13 +315,52 @@ const starfield = {
 };
 starfield.init();
 
+// --- NEW VESSEL TRAIL SYSTEM ---
+const vesselTrail = {
+    particles: [],
+    spawnTimer: 0,
+    spawn: function(x, y, w, h) {
+        this.spawnTimer++;
+        if (this.spawnTimer % 2 !== 0) return; // Emit every 2 frames for density
+        // Spawn near the back engine of the vessel
+        const spawnX = x + 5; 
+        const spawnY = y + h / 2 + (Math.random() * 6 - 3);
+        this.particles.push({
+            x: spawnX, y: spawnY,
+            vx: (Math.random() - 1.2) * 2.5, // Drift backward fast
+            vy: (Math.random() - 0.5) * 0.8, // Slight vertical scatter
+            size: Math.random() * 1.8 + 0.8, // Small, sharp stars
+            alpha: 1.0,
+            decay: 0.03 + Math.random() * 0.02
+        });
+    },
+    update: function() {
+        let globalSpeed = (gamePlaying || isDead || isDying) ? 2.5 : 0.3;
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            let p = this.particles[i];
+            // Move backward relative to game speed + own velocity
+            p.x -= (globalSpeed * 1.2) + p.vx; 
+            p.y += p.vy;
+            p.alpha -= p.decay;
+            if (p.alpha <= 0 || p.x < -10) { this.particles.splice(i, 1); }
+        }
+    },
+    draw: function() {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter"; // Additive glow for stars
+        for (let p of this.particles) {
+            ctx.fillStyle = `rgba(40, 255, 40, ${p.alpha})`;
+            ctx.beginPath(); ctx.rect(p.x, p.y, p.size, p.size); ctx.fill();
+        }
+        ctx.restore();
+    }
+};
+
 function startDeathAnimation() {
     if (isDying || isDead) return;
     gamePlaying = false;
     isDying = true;
-    
-    music.pause(); 
-    music.currentTime = 0;
+    music.pause(); music.currentTime = 0;
     currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
     music.src = playlist[currentTrackIndex];
 }
@@ -364,6 +375,11 @@ const bird = {
         ctx.restore();
     },
     update: function() {
+        // Spawn trail particles as long as it's not game over screen
+        if (gamePlaying || isDying || (!gamePlaying && !isDead && !isDying)) {
+             vesselTrail.spawn(this.x, this.y, this.w, this.h);
+        }
+
         if (!gamePlaying && !isDead && !isDying) { this.y = 180 + Math.cos(frames/15) * 10; return; }
         if (isDead) return;
         
@@ -468,7 +484,9 @@ function draw(){
         }
     } else { ctx.fillStyle = "#000"; ctx.fillRect(0, 0, gameWidth, gameHeight); }
     
-    starfield.draw(); pipes.draw(); bird.draw();
+    starfield.draw();
+    vesselTrail.update(); vesselTrail.draw(); // Update and draw trail before pipes/bird
+    pipes.draw(); bird.draw();
 
     if (isViewingUI || !username) return;
 
@@ -538,6 +556,8 @@ function handleAction(e) {
 
         justUnlockedBird2 = false; isDead = false; bird.y = 180; bird.speed = 0; pipes.position = [];
         pipes.dx = 3.5; pipes.gap = 140; pipes.opacity = 1.0; score = 0; frames = 0; hueShift = 0; cvs.style.filter = `hue-rotate(0deg)`;
+        // Clear trail on reset
+        vesselTrail.particles = [];
         return;
     }
     
