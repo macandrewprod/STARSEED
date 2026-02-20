@@ -180,11 +180,33 @@ function pushScoreToCloud() {
     }
 }
 
+// --- UNIQUE USERNAME LOGIC ---
 saveUserBtn.addEventListener("click", () => {
     let val = usernameInput.value.trim().toUpperCase();
     if (val.length > 0) {
-        username = val; localStorage.setItem("starseedUsername", username);
-        loginUI.classList.add("hidden"); lbBtnContainer.classList.remove("hidden");
+        // Change button text to show it's loading
+        saveUserBtn.innerText = "CHECKING...";
+        
+        // Check Firebase to see if the alias is already taken
+        db.ref('leaderboard/' + val).once('value').then((snapshot) => {
+            if (snapshot.exists()) {
+                alert("ALIAS ALREADY IN USE. PLEASE CHOOSE ANOTHER.");
+                saveUserBtn.innerText = "SYNC IDENTITY";
+            } else {
+                // Reserve the name with a score of 0
+                db.ref('leaderboard/' + val).set({ score: 0 });
+                
+                // Save locally and proceed
+                username = val; 
+                localStorage.setItem("starseedUsername", username);
+                loginUI.classList.add("hidden"); 
+                lbBtnContainer.classList.remove("hidden");
+            }
+        }).catch((error) => {
+            console.error(error);
+            alert("NETWORK ERROR. TRY AGAIN.");
+            saveUserBtn.innerText = "SYNC IDENTITY";
+        });
     }
 });
 
@@ -195,7 +217,7 @@ openLbBtn.addEventListener("click", () => {
 
 closeLbBtn.addEventListener("click", () => {
     isViewingLeaderboard = false; lbUI.classList.add("hidden");
-    if (!gamePlaying) lbBtnContainer.classList.remove("hidden");
+    if (!gamePlaying && !isDead) lbBtnContainer.classList.remove("hidden");
 });
 
 if (!username) { loginUI.classList.remove("hidden"); } else { lbBtnContainer.classList.remove("hidden"); }
@@ -349,9 +371,9 @@ function loop(){ starfield.update(); bird.update(); pipes.update(); draw(); fram
 
 function gameOver(){
     gamePlaying = false; isDead = true; finalScore = score;
-    lbBtnContainer.classList.remove("hidden");
-    if(score > highScore) { highScore = score; localStorage.setItem("starseedHighScore", highScore); }
+    // Removed lbBtnContainer display from here so it doesn't show on the death screen
     
+    if(score > highScore) { highScore = score; localStorage.setItem("starseedHighScore", highScore); }
     pushScoreToCloud();
 
     music.pause(); music.currentTime = 0;
@@ -386,7 +408,9 @@ function handleAction(e) {
 
         justUnlockedBird2 = false; isDead = false; bird.y = 220; bird.speed = 0; pipes.position = [];
         pipes.dx = 3.5; pipes.gap = 140; score = 0; frames = 0; hueShift = 0; cvs.style.filter = `hue-rotate(0deg)`;
-        lbBtnContainer.classList.add("hidden"); 
+        
+        // Return Leaderboard button to the start screen
+        lbBtnContainer.classList.remove("hidden"); 
         return;
     }
     
