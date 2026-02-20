@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STARSEED - Network</title>
+    <title>STARSEED - Highest Scores</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -77,14 +77,14 @@
     </div>
 
     <div id="leaderboard-ui" class="overlay hidden">
-        <h2 style="margin-bottom: 20px;">NETWORK ARCHIVE</h2>
+        <h2 style="margin-bottom: 20px;">HIGHEST SCORES</h2>
         <ul id="leaderboard-list" class="lb-list">
             </ul>
         <button id="close-lb-btn" class="ui-btn">RETURN</button>
     </div>
 
     <div id="lb-btn-container" class="hidden">
-        <button id="open-lb-btn" class="ui-btn" style="background: transparent; border: 2px solid #28ff28; color: #28ff28;">VIEW NETWORK</button>
+        <button id="open-lb-btn" class="ui-btn" style="background: transparent; border: 2px solid #28ff28; color: #28ff28;">HIGHEST SCORES</button>
     </div>
 </div>
 
@@ -155,20 +155,16 @@ let selectedBird = 1;
 let justUnlockedBird2 = false; 
 let hueShift = 0;
 
-// MOCK DATABASE LOGIC
+// LIVE DATA LOGIC (Ready for Backend)
 function getLeaderboardData() {
-    let mockData = [
-        { name: "YJ", score: 112 },
-        { name: "BLEEZE", score: 89 },
-        { name: "JET", score: 75 },
-        { name: "JAVYDADE", score: 48 }
-    ];
-    // Add local user to the array
+    let liveData = [];
+    
+    // Currently only pushes the local user's score to the array
     if (username && highScore > 0) {
-        mockData.push({ name: username, score: parseInt(highScore) });
+        liveData.push({ name: username, score: parseInt(highScore) });
     }
-    // Sort highest to lowest
-    return mockData.sort((a, b) => b.score - a.score).slice(0, 5);
+    
+    return liveData.sort((a, b) => b.score - a.score).slice(0, 5);
 }
 
 // UI EVENT LISTENERS
@@ -373,7 +369,6 @@ function draw(){
 
         ctx.fillStyle = "rgba(40, 255, 40, 0.8)"; ctx.font = "bold 16px Courier New"; ctx.fillText("TAP TO RE-INITIATE", gameWidth/2, gameHeight/2 + 105);
 
-        // Canvas Share Button Box
         ctx.fillStyle = "rgba(40, 255, 40, 0.1)"; ctx.fillRect(gameWidth/2 - 70, gameHeight/2 + 130, 140, 35);
         ctx.strokeStyle = "#28ff28"; ctx.lineWidth = 2; ctx.strokeRect(gameWidth/2 - 70, gameHeight/2 + 130, 140, 35);
         ctx.fillStyle = "#28ff28"; ctx.font = "bold 16px Courier New"; ctx.fillText("SHARE SCORE", gameWidth/2, gameHeight/2 + 152);
@@ -384,7 +379,7 @@ function loop(){ starfield.update(); bird.update(); pipes.update(); draw(); fram
 
 function gameOver(){
     gamePlaying = false; isDead = true; finalScore = score;
-    lbBtnContainer.classList.remove("hidden"); // Show LB button on death
+    lbBtnContainer.classList.remove("hidden");
     if(score > highScore) { highScore = score; localStorage.setItem("starseedHighScore", highScore); }
     music.pause(); music.currentTime = 0;
     currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
@@ -392,7 +387,6 @@ function gameOver(){
 }
 
 function handleAction(e) {
-    // Prevent flap if interacting with HTML UI
     if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || !username || isViewingLeaderboard) return;
     
     if (e && e.type === "touchstart") e.preventDefault();
@@ -426,7 +420,7 @@ function handleAction(e) {
 
         justUnlockedBird2 = false; isDead = false; bird.y = 220; bird.speed = 0; pipes.position = [];
         pipes.dx = 3.5; pipes.gap = 140; score = 0; frames = 0; hueShift = 0; cvs.style.filter = `hue-rotate(0deg)`;
-        lbBtnContainer.classList.add("hidden"); // Hide LB button when playing
+        lbBtnContainer.classList.add("hidden"); 
         return;
     }
     
