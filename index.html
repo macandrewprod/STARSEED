@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STARSEED - Reactive Engine</title>
+    <title>STARSEED - Vessel Pulse</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -55,7 +55,7 @@ const bgImg = new Image(); bgImg.src = "bg.png";
 const playlist = ["music.mp3", "music2.mp3", "music3.mp3", "music4.mp3"];
 let currentTrackIndex = 0;
 const music = new Audio();
-music.crossOrigin = "anonymous"; // Required for Web Audio API analysis
+music.crossOrigin = "anonymous"; 
 music.src = playlist[currentTrackIndex];
 music.loop = true;
 const sound47 = new Audio();
@@ -64,7 +64,7 @@ sound47.src = "47.mp3";
 // Reactive Audio Variables
 let audioCtx, analyser, source, dataArray;
 let isAudioInitialized = false;
-let bassPulse = 0; // Value between 0 and 255
+let bassPulse = 0; 
 
 function initAudio() {
     if (isAudioInitialized) return;
@@ -92,51 +92,90 @@ let bird2Unlocked = localStorage.getItem("bird2Unlocked") === "true";
 let selectedBird = 1; 
 let justUnlockedBird2 = false; 
 
-// --- STARFIELD ---
+// --- STARFIELD (PARALLAX 3D LAYERS) ---
 const starfield = {
     particles: [],
     init: function() {
-        for(let i = 0; i < 60; i++) { 
+        this.particles = [];
+        for(let i = 0; i < 75; i++) { 
+            let layer = Math.random();
+            let size, speed, opacity;
+            
+            // Background Layer (Small, slow, dim)
+            if (layer < 0.6) { 
+                size = Math.random() * 0.5 + 0.5;
+                speed = Math.random() * 0.2 + 0.1;
+                opacity = 0.3;
+            } 
+            // Midground Layer (Medium size, normal speed)
+            else if (layer < 0.9) { 
+                size = Math.random() * 1.0 + 1.0;
+                speed = Math.random() * 0.5 + 0.5;
+                opacity = 0.6;
+            } 
+            // Foreground Layer (Large, fast, bright)
+            else { 
+                size = Math.random() * 1.5 + 1.5;
+                speed = Math.random() * 1.2 + 1.0;
+                opacity = 1.0;
+            }
+
             this.particles.push({
                 x: Math.random() * gameWidth,
                 y: Math.random() * gameHeight,
-                size: Math.random() * 0.9 + 0.4, 
-                speed: Math.random() * 0.8 + 0.1,
-                opacity: Math.random() 
+                size: size,
+                speed: speed,
+                baseOpacity: opacity,
+                opacity: opacity
             });
         }
     },
     draw: function() {
-        for(let i = 0; i < this.particles.length; i++) {
-            let p = this.particles[i];
-            p.opacity += (Math.random() - 0.5) * 0.1;
-            if(p.opacity < 0.2) p.opacity = 0.2;
-            if(p.opacity > 1) p.opacity = 1;
-            ctx.fillStyle = (i % 6 === 0) ? `rgba(40, 255, 40, ${p.opacity})` : `rgba(255, 255, 255, ${p.opacity})`;
+        for(let p of this.particles) {
+            // Twinkle effect
+            p.opacity = p.baseOpacity + (Math.random() - 0.5) * 0.2;
+            if(p.opacity < 0.1) p.opacity = 0.1;
+            
+            // Random green stars to fit the color palette
+            ctx.fillStyle = (Math.random() > 0.8) ? `rgba(40, 255, 40, ${p.opacity})` : `rgba(255, 255, 255, ${p.opacity})`;
             ctx.fillRect(Math.floor(p.x), Math.floor(p.y), p.size, p.size);
         }
     },
     update: function() {
-        // Speed boosts slightly when the bass hits
-        let reactiveSpeed = (bassPulse / 255) * 1.5;
-        let globalSpeed = (gamePlaying || isDead) ? (2.5 + reactiveSpeed) : 0.3; 
-        
+        let globalSpeed = (gamePlaying || isDead) ? 2.5 : 0.3; 
         for(let p of this.particles) {
+            // The individual p.speed causes the 3D parallax scrolling
             p.x -= (p.speed * globalSpeed);
-            if(p.x < 0) { p.x = gameWidth; p.y = Math.random() * gameHeight; }
+            if(p.x + p.size < 0) { 
+                p.x = gameWidth; 
+                p.y = Math.random() * gameHeight; 
+            }
         }
     }
 };
 starfield.init();
 
-// --- VESSEL ---
+// --- VESSEL (AUDIO REACTIVE) ---
 const bird = {
     x: 50, y: 220, w: 55, h: 65, speed: 0, gravity: 0.32, jump: 5.8,    
     draw: function() {
+        ctx.save();
         let currentImg = (selectedBird === 1) ? bird1Img : bird2Img;
+        
+        // --- THE BEAT PULSE GLOW ---
+        if (bassPulse > 130 && gamePlaying) {
+            // The harder the bass, the brighter and larger the neon glow
+            let glowIntensity = ((bassPulse - 130) / 125) * 25 + 5; 
+            ctx.shadowColor = "#28ff28";
+            ctx.shadowBlur = glowIntensity;
+        } else {
+            ctx.shadowBlur = 0;
+        }
+
         if (currentImg.complete) { 
             ctx.drawImage(currentImg, Math.floor(this.x), Math.floor(this.y), this.w, this.h); 
         }
+        ctx.restore();
     },
     update: function() {
         if (!gamePlaying && !isDead) { this.y = 220 + Math.cos(frames/15) * 10; return; }
@@ -148,19 +187,15 @@ const bird = {
     flap: function() { this.speed = -this.jump; }
 };
 
-// --- PILLARS ---
+// --- PILLARS (STATIC NEON) ---
 const pipes = {
     position: [], w: 50, h: 400, gap: 140, dx: 3.5, 
     draw: function() {
         ctx.save();
-        
-        // REACTIVE GLOW: The blur intensifies based on the bass frequency
-        let dynamicBlur = 10 + (bassPulse * 0.15); 
+        // Pillars returned to a steady, constant glow
         ctx.shadowColor = "#28ff28"; 
-        ctx.shadowBlur = dynamicBlur;
-        
-        // Slightly thicken the line on heavy beats
-        ctx.lineWidth = 3 + (bassPulse / 150);
+        ctx.shadowBlur = 15; 
+        ctx.lineWidth = 3;
         ctx.strokeStyle = "#28ff28";
 
         for(let p of this.position){
@@ -221,7 +256,6 @@ const pipes = {
 function updateAudioData() {
     if (isAudioInitialized && !music.paused) {
         analyser.getByteFrequencyData(dataArray);
-        // Isolate the lowest frequencies (bass)
         let sum = 0;
         for(let i = 0; i < 8; i++) { sum += dataArray[i]; }
         bassPulse = sum / 8; 
@@ -232,7 +266,7 @@ function updateAudioData() {
 
 function draw(){
     ctx.imageSmoothingEnabled = false;
-    updateAudioData(); // Process the audio frequency every frame
+    updateAudioData(); 
 
     if (bgImg.complete) {
         let scale = Math.max(gameWidth / bgImg.width, gameHeight / bgImg.height);
@@ -243,12 +277,6 @@ function draw(){
         ctx.fillStyle = "#000"; ctx.fillRect(0, 0, gameWidth, gameHeight);
     }
     
-    // REACTIVE BACKGROUND FLASH: Subtly light up the screen on heavy kicks
-    if (bassPulse > 180 && gamePlaying) {
-        ctx.fillStyle = `rgba(40, 255, 40, ${(bassPulse - 180) / 75 * 0.15})`;
-        ctx.fillRect(0, 0, gameWidth, gameHeight);
-    }
-
     starfield.draw(); pipes.draw(); bird.draw();
 
     if (gamePlaying) {
@@ -317,13 +345,8 @@ function gameOver(){
 function handleAction(e) {
     if (e && e.type === "touchstart") e.preventDefault();
     
-    // Initialize Web Audio API on first user interaction to bypass browser blocks
-    if (!isAudioInitialized) {
-        initAudio();
-    }
-    if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
+    if (!isAudioInitialized) { initAudio(); }
+    if (audioCtx && audioCtx.state === 'suspended') { audioCtx.resume(); }
 
     if (!gamePlaying && !isDead) {
         let touchX, touchY;
