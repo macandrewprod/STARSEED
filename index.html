@@ -171,7 +171,9 @@ function initAudio() {
 
 // VARIABLES
 let username = localStorage.getItem("starseedUsername") || "";
-let gamePlaying = false; let isDead = false; 
+let gamePlaying = false; 
+let isDying = false; // NEW STATE: For the floating death animation
+let isDead = false; 
 let isViewingUI = false; 
 let frames = 0; let score = 0; let finalScore = 0;
 let highScore = localStorage.getItem("starseedHighScore") || 0;
@@ -212,19 +214,14 @@ saveUserBtn.addEventListener("click", () => {
     if (val.length > 0) {
         saveUserBtn.innerText = "SYNCING...";
         
-        // Check Firebase to see if the alias exists
         db.ref('leaderboard/' + val).once('value').then((snapshot) => {
             if (!snapshot.exists()) {
-                // If it's a completely new name, initialize it at 0
                 db.ref('leaderboard/' + val).set({ score: 0 });
             }
-            
-            // Log the user in either way
             username = val; 
             localStorage.setItem("starseedUsername", username);
             loginUI.classList.add("hidden"); 
             saveUserBtn.innerText = "SYNC IDENTITY";
-            
         }).catch((error) => { 
             alert("NETWORK ERROR. TRY AGAIN."); 
             saveUserBtn.innerText = "SYNC IDENTITY"; 
@@ -291,7 +288,8 @@ const starfield = {
         }
     },
     update: function() {
-        let globalSpeed = (gamePlaying || isDead) ? 2.5 : 0.3; 
+        // Keeps the stars moving even while dying
+        let globalSpeed = (gamePlaying || isDead || isDying) ? 2.5 : 0.3; 
         for(let p of this.particles) {
             p.x -= (p.speed * globalSpeed);
             if(p.x + p.size < 0) { p.x = gameWidth; p.y = Math.random() * gameHeight; }
@@ -300,20 +298,42 @@ const starfield = {
 };
 starfield.init();
 
+// --- NEW DEATH ANIMATION TRIGGER ---
+function startDeathAnimation() {
+    if (isDying || isDead) return;
+    gamePlaying = false;
+    isDying = true;
+}
+
 const bird = {
     x: 50, y: 220, w: 55, h: 65, speed: 0, gravity: 0.32, jump: 5.8,    
     draw: function() {
         ctx.save();
         let currentImg = (selectedBird === 1) ? bird1Img : bird2Img;
-        if (bassPulse > 130 && gamePlaying) { ctx.shadowColor = "#28ff28"; ctx.shadowBlur = ((bassPulse - 130) / 125) * 25 + 5; } else { ctx.shadowBlur = 0; }
+        // Keep the glow alive while drifting upwards
+        if (bassPulse > 130 && (gamePlaying || isDying)) { ctx.shadowColor = "#28ff28"; ctx.shadowBlur = ((bassPulse - 130) / 125) * 25 + 5; } else { ctx.shadowBlur = 0; }
         if (currentImg.complete) { ctx.drawImage(currentImg, Math.floor(this.x), Math.floor(this.y), this.w, this.h); }
         ctx.restore();
     },
     update: function() {
-        if (!gamePlaying && !isDead) { this.y = 180 + Math.cos(frames/15) * 10; return; }
+        if (!gamePlaying && !isDead && !isDying) { this.y = 180 + Math.cos(frames/15) * 10; return; }
         if (isDead) return;
+        
+        // --- DEATH DRIFT LOGIC ---
+        if (isDying) {
+            this.y -= 6; // Floats upwards off screen
+            if (this.y + this.h < -20) {
+                // Once it completely clears the screen, trigger the actual game over UI
+                isDying = false;
+                gameOver();
+            }
+            return;
+        }
+
         this.speed += this.gravity; this.y += this.speed;
-        if (this.y + this.h >= gameHeight || this.y <= 0) { gameOver(); }
+        
+        // Floor and ceiling collisions trigger the death drift
+        if (this.y + this.h >= gameHeight || this.y <= 0) { startDeathAnimation(); }
     },
     flap: function() { this.speed = -this.jump; }
 };
@@ -329,7 +349,7 @@ const pipes = {
         ctx.restore();
     },
     update: function() {
-        if(!gamePlaying) return;
+        if(!gamePlaying) return; // Pipes freeze instantly when gamePlaying becomes false
         if(frames % 90 == 0){
             let minY, maxY;
             if (score < 60) { minY = -240; maxY = -200; } else { minY = -280; maxY = -160; }
@@ -338,7 +358,7 @@ const pipes = {
         for(let i = 0; i < this.position.length; i++){
             let p = this.position[i]; p.x -= this.dx;
             if( bird.x + 12 < p.x + this.w && bird.x + bird.w - 12 > p.x && (bird.y + 12 < p.y + this.h || bird.y + bird.h - 12 > p.y + this.h + p.currentGap)){
-                gameOver(); return; 
+                startDeathAnimation(); return; 
             }
             if(p.x + this.w <= 0){ this.position.shift(); i--; } 
             else if (p.x + this.w < bird.x && !p.scored) {
@@ -399,7 +419,7 @@ function draw(){
 
     if (gamePlaying) { ctx.fillStyle = "#28ff28"; ctx.font = "bold 45px Courier New"; ctx.textAlign = "center"; ctx.fillText(score, gameWidth/2, 80); }
 
-    if(!gamePlaying && !isDead){
+    if(!gamePlaying && !isDead && !isDying){
         ctx.fillStyle = "rgba(40, 255, 40, 0.7)"; ctx.font = "bold 16px Courier New"; ctx.textAlign = "center"; 
         ctx.fillText("[ MENU ]", gameWidth/2, 50);
         
@@ -430,7 +450,7 @@ function draw(){
 function loop(){ starfield.update(); bird.update(); pipes.update(); draw(); frames++; requestAnimationFrame(loop); }
 
 function gameOver(){
-    gamePlaying = false; isDead = true; finalScore = score;
+    isDead = true; finalScore = score;
     if(score > highScore) { highScore = score; localStorage.setItem("starseedHighScore", highScore); }
     pushScoreToCloud();
 
@@ -451,6 +471,9 @@ function handleAction(e) {
         if (e.type === "touchstart") { touchX = (e.touches[0].clientX - rect.left) * (gameWidth / rect.width); touchY = (e.touches[0].clientY - rect.top) * (gameHeight / rect.height); } 
         else { touchX = (e.clientX - rect.left) * (gameWidth / rect.width); touchY = (e.clientY - rect.top) * (gameHeight / rect.height); }
     }
+
+    // Block tapping while the vessel is drifting away
+    if (isDying) return;
 
     if (!gamePlaying && !isDead && touchY && touchY < 70 && touchX > gameWidth/2 - 50 && touchX < gameWidth/2 + 50) {
         openMainMenu(); return;
