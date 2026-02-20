@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STARSEED - Vessel Sync</title>
+    <title>STARSEED - Top HUD</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -161,7 +161,6 @@ const pipes = {
             else if (p.x + this.w < bird.x && !p.scored) {
                 p.scored = true;
                 score++;
-                
                 if (score === 47) {
                     sound47.play().catch(() => {});
                     if (!bird2Unlocked) {
@@ -171,7 +170,6 @@ const pipes = {
                         unlockAlertTimer = 180; 
                     }
                 }
-
                 if (score % 10 === 0) { this.dx += 0.7; if (this.gap > 135) this.gap -= 5; }
             }
         }
@@ -198,7 +196,6 @@ function draw(){
         ctx.textAlign = "center"; ctx.fillText(score, gameWidth/2, 70);
     }
 
-    // THEMATIC UPDATE: "NEW VESSEL SYNCED"
     if (showUnlockAlert) {
         ctx.fillStyle = "rgba(40, 255, 40, 0.9)";
         ctx.font = "bold 16px Courier New";
@@ -210,35 +207,38 @@ function draw(){
     }
 
     if(!gamePlaying && !isDead){
-        ctx.fillStyle = "rgba(40, 255, 40, 0.9)"; 
-        ctx.font = "bold 22px Courier New";
-        ctx.textAlign = "center";
-        ctx.fillText("INITIATE SEQUENCE", gameWidth/2, gameHeight/2 + 50);
-        
+        // --- HUD MOVED TO TOP ---
         ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
         ctx.font = "bold 14px Courier New";
-        ctx.fillText("HIGH SCORE: " + highScore, gameWidth/2, gameHeight/2 + 80);
+        ctx.textAlign = "center";
+        ctx.fillText("HIGH SCORE: " + highScore, gameWidth/2, 40);
 
-        // THEMATIC UPDATE: "SELECT VESSEL"
         ctx.fillStyle = "#FFF";
         ctx.font = "bold 12px Courier New";
-        ctx.fillText("SELECT VESSEL", gameWidth/2, gameHeight/2 + 130);
+        ctx.fillText("SELECT VESSEL", gameWidth/2, 65);
         
+        // Vessel Slot 1 (Moved up)
         ctx.strokeStyle = (selectedBird === 1) ? "#28ff28" : "#444";
-        ctx.strokeRect(gameWidth/2 - 50, gameHeight/2 + 145, 40, 50);
-        if (bird1Img.complete) ctx.drawImage(bird1Img, gameWidth/2 - 45, gameHeight/2 + 155, 30, 35);
+        ctx.strokeRect(gameWidth/2 - 50, 80, 40, 50);
+        if (bird1Img.complete) ctx.drawImage(bird1Img, gameWidth/2 - 45, 90, 30, 35);
         
+        // Vessel Slot 2 (Moved up)
         if (bird2Unlocked) {
             ctx.strokeStyle = (selectedBird === 2) ? "#28ff28" : "#444";
-            ctx.strokeRect(gameWidth/2 + 10, gameHeight/2 + 145, 40, 50);
-            if (bird2Img.complete) ctx.drawImage(bird2Img, gameWidth/2 + 15, gameHeight/2 + 155, 30, 35);
+            ctx.strokeRect(gameWidth/2 + 10, 80, 40, 50);
+            if (bird2Img.complete) ctx.drawImage(bird2Img, gameWidth/2 + 15, 90, 30, 35);
         } else {
             ctx.fillStyle = "#333";
-            ctx.fillRect(gameWidth/2 + 10, gameHeight/2 + 145, 40, 50);
+            ctx.fillRect(gameWidth/2 + 10, 80, 40, 50);
             ctx.fillStyle = "#666";
             ctx.font = "bold 10px Courier New";
-            ctx.fillText("LOCKED", gameWidth/2 + 30, gameHeight/2 + 175);
+            ctx.fillText("LOCKED", gameWidth/2 + 30, 110);
         }
+
+        // --- CENTER PROMPT ---
+        ctx.fillStyle = "rgba(40, 255, 40, 0.9)"; 
+        ctx.font = "bold 22px Courier New";
+        ctx.fillText("INITIATE SEQUENCE", gameWidth/2, gameHeight/2 + 50);
     }
 
     if(isDead){
@@ -277,10 +277,11 @@ function handleAction(e) {
             touchY = (e.clientY - rect.top) * (gameHeight / rect.height);
         }
 
-        if (touchX > gameWidth/2 - 50 && touchX < gameWidth/2 - 10 && touchY > gameHeight/2 + 145 && touchY < gameHeight/2 + 195) {
+        // --- UPDATED TOUCH COORDINATES FOR TOP MENU ---
+        if (touchX > gameWidth/2 - 50 && touchX < gameWidth/2 - 10 && touchY > 80 && touchY < 130) {
             selectedBird = 1; return;
         }
-        if (bird2Unlocked && touchX > gameWidth/2 + 10 && touchX < gameWidth/2 + 50 && touchY > gameHeight/2 + 145 && touchY < gameHeight/2 + 195) {
+        if (bird2Unlocked && touchX > gameWidth/2 + 10 && touchX < gameWidth/2 + 50 && touchY > 80 && touchY < 130) {
             selectedBird = 2; return;
         }
     }
