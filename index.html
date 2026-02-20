@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STARSEED - Aspect Lock</title>
+    <title>STARSEED - Final Sequence</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -51,8 +51,10 @@ const music = new Audio(); music.src = "music.mp3"; music.loop = true;
 
 // --- VARIABLES ---
 let gamePlaying = false;
+let isDead = false; // New state to track if we just died
 let frames = 0;
 let score = 0;
+let finalScore = 0;
 
 // --- STARFIELD ---
 const starfield = {
@@ -79,7 +81,7 @@ const starfield = {
         }
     },
     update: function() {
-        let globalSpeed = gamePlaying ? 2.5 : 0.3; 
+        let globalSpeed = (gamePlaying || isDead) ? 2.5 : 0.3; 
         for(let p of this.particles) {
             p.x -= (p.speed * globalSpeed);
             if(p.x < 0) { p.x = gameWidth; p.y = Math.random() * gameHeight; }
@@ -96,7 +98,9 @@ const bird = {
         else { ctx.fillStyle = "#28ff28"; ctx.fillRect(this.x, this.y, this.w, this.h); }
     },
     update: function() {
-        if (!gamePlaying) { this.y = 280 + Math.cos(frames/15) * 10; return; }
+        if (!gamePlaying && !isDead) { this.y = 280 + Math.cos(frames/15) * 10; return; }
+        if (isDead) return; // Freeze position on death
+        
         this.speed += this.gravity;
         this.y += this.speed;
         if (this.y + this.h >= gameHeight || this.y <= 0) { gameOver(); }
@@ -148,10 +152,9 @@ const pipes = {
 // --- ENGINE ---
 function draw(){
     if (bgImg.complete) {
-        // TWEAK: Using a math formula to keep the background from stretching vertically
         let scale = Math.max(gameWidth / bgImg.width, gameHeight / bgImg.height);
         let x = (gameWidth / 2) - (bgImg.width / 2) * scale;
-        let y = (gameHeight) - (bgImg.height * scale); // Anchors it to the bottom
+        let y = (gameHeight) - (bgImg.height * scale); 
         ctx.drawImage(bgImg, x, y, bgImg.width * scale, bgImg.height * scale);
     } else {
         ctx.fillStyle = "#000"; ctx.fillRect(0, 0, gameWidth, gameHeight);
@@ -161,28 +164,68 @@ function draw(){
     pipes.draw(); 
     bird.draw();
 
-    ctx.fillStyle = "#28ff28"; 
-    ctx.font = "bold 38px Courier New";
-    ctx.textAlign = "center";
-    ctx.fillText(score, gameWidth/2, 70);
+    // LIVE SCORE
+    if (gamePlaying) {
+        ctx.fillStyle = "#28ff28"; 
+        ctx.font = "bold 38px Courier New";
+        ctx.textAlign = "center";
+        ctx.fillText(score, gameWidth/2, 70);
+    }
 
-    if(!gamePlaying){
+    // START SCREEN
+    if(!gamePlaying && !isDead){
         ctx.fillStyle = "rgba(40, 255, 40, 0.9)"; 
         ctx.font = "bold 22px Courier New";
+        ctx.textAlign = "center";
         ctx.fillText("INITIATE SEQUENCE", gameWidth/2, gameHeight/2 + 50);
+    }
+
+    // DEATH SCREEN
+    if(isDead){
+        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+        ctx.fillRect(0, 0, gameWidth, gameHeight);
+        
+        ctx.fillStyle = "#28ff28"; 
+        ctx.font = "bold 24px Courier New";
+        ctx.textAlign = "center";
+        ctx.fillText("SEQUENCE TERMINATED", gameWidth/2, gameHeight/2 - 40);
+        
+        ctx.fillStyle = "#FFF";
+        ctx.font = "bold 45px Courier New";
+        ctx.fillText("SCORE: " + finalScore, gameWidth/2, gameHeight/2 + 20);
+        
+        ctx.fillStyle = "rgba(40, 255, 40, 0.8)";
+        ctx.font = "bold 16px Courier New";
+        ctx.fillText("TAP TO RE-INITIATE", gameWidth/2, gameHeight/2 + 70);
     }
 }
 
 function loop(){ starfield.update(); bird.update(); pipes.update(); draw(); frames++; requestAnimationFrame(loop); }
 
 function gameOver(){
-    gamePlaying = false; bird.y = 280; bird.speed = 0;
-    pipes.position = []; pipes.dx = 3.2; pipes.gap = 165; score = 0; frames = 0;
-    music.pause(); music.currentTime = 0;
+    gamePlaying = false;
+    isDead = true; // Trigger the death screen
+    finalScore = score;
+    music.pause();
+    music.currentTime = 0;
 }
 
 function handleAction(e) {
     if (e && e.type === "touchstart") e.preventDefault();
+    
+    if(isDead) {
+        // Reset everything for the new run
+        isDead = false;
+        bird.y = 280;
+        bird.speed = 0;
+        pipes.position = [];
+        pipes.dx = 3.2;
+        pipes.gap = 165;
+        score = 0;
+        frames = 0;
+        return;
+    }
+
     if(!gamePlaying){
         gamePlaying = true;
         music.play().catch(() => {});
