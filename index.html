@@ -3,42 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>STARSEED - Mobile Edition</title>
+    <title>STARSEED - Full Screen Edition</title>
     <style>
-        body {
+        body, html {
             margin: 0;
             padding: 0;
+            width: 100%;
+            height: 100%;
             background-color: #0d0d0d;
+            overflow: hidden;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            overflow: hidden;
-            font-family: 'Courier New', Courier, monospace;
-            /* Prevents accidental highlighting on mobile */
-            user-select: none; 
+            user-select: none;
             -webkit-user-select: none;
-            touch-action: none; 
+            touch-action: none;
         }
         canvas {
             display: block;
-            background-color: #000;
+            width: 100vw;
+            height: 100vh;
+            /* Ensures the background image fills the screen without distorting */
+            object-fit: cover; 
         }
     </style>
 </head>
 <body>
 
 <script>
-// --- GAME CONFIGURATION ---
+// --- ADAPTIVE CONFIGURATION ---
 const cvs = document.createElement("canvas");
 const ctx = cvs.getContext("2d");
 
-const gameWidth = 320;
-const gameHeight = 480;
+// We now grab the exact width and height of your phone screen
+let gameWidth = window.innerWidth;
+let gameHeight = window.innerHeight;
 const dpr = window.devicePixelRatio || 1;
 
-cvs.style.width = gameWidth + "px";
-cvs.style.height = gameHeight + "px";
 cvs.width = gameWidth * dpr;
 cvs.height = gameHeight * dpr;
 ctx.scale(dpr, dpr);
@@ -46,7 +47,7 @@ ctx.scale(dpr, dpr);
 ctx.imageSmoothingEnabled = false;
 document.body.appendChild(cvs);
 
-// --- LOAD ASSETS ---
+// --- ASSETS ---
 const birdImg = new Image(); birdImg.src = "bird.png"; 
 const pipeImg = new Image(); pipeImg.src = "pillar.png"; 
 const bgImg = new Image(); bgImg.src = "bg.png"; 
@@ -57,7 +58,7 @@ let gamePlaying = false;
 let frames = 0;
 let score = 0;
 
-// --- STARFIELD ---
+// --- DYNAMIC STARFIELD ---
 const starfield = {
     particles: [],
     init: function() {
@@ -91,15 +92,17 @@ const starfield = {
 };
 starfield.init();
 
-// --- BIRD OBJECT ---
+// --- BIRD OBJECT (POSITIONED RELATIVELY) ---
 const bird = {
-    x: 50, y: 150, w: 45, h: 55, speed: 0, gravity: 0.3, jump: 5.0,    
+    x: 50,
+    y: gameHeight / 2, // Starts in the center of whatever screen size
+    w: 45, h: 55, speed: 0, gravity: 0.3, jump: 5.5,    
     draw: function() {
         if (birdImg.complete) { ctx.drawImage(birdImg, this.x, this.y, this.w, this.h); }
         else { ctx.fillStyle = "#28ff28"; ctx.fillRect(this.x, this.y, this.w, this.h); }
     },
     update: function() {
-        if (!gamePlaying) { this.y = 150 + Math.cos(frames/15) * 5; return; }
+        if (!gamePlaying) { this.y = (gameHeight/2) + Math.cos(frames/15) * 15; return; }
         this.speed += this.gravity;
         this.y += this.speed;
         if (this.y + this.h >= gameHeight || this.y <= 0) { gameOver(); }
@@ -109,7 +112,7 @@ const bird = {
 
 // --- PIPES OBJECT ---
 const pipes = {
-    position: [], w: 52, h: 380, gap: 140, dx: 3.0, 
+    position: [], w: 55, h: 400, gap: 150, dx: 3.5, 
     draw: function() {
         for(let p of this.position){
             let topY = p.y;
@@ -129,9 +132,8 @@ const pipes = {
     },
     update: function() {
         if(!gamePlaying) return;
-        let spawnRate = Math.max(60, 100 - (this.dx * 10));
-        if(frames % Math.floor(spawnRate) == 0){
-            this.position.push({ x: gameWidth, y: Math.floor(Math.random() * (-50 - -250 + 1) + -250), currentGap: this.gap, scored: false });
+        if(frames % 90 == 0){
+            this.position.push({ x: gameWidth, y: Math.floor(Math.random() * (-100 - -300 + 1) + -300), currentGap: this.gap, scored: false });
         }
         for(let i = 0; i < this.position.length; i++){
             let p = this.position[i];
@@ -143,7 +145,7 @@ const pipes = {
             if(p.x + this.w <= 0){ this.position.shift(); i--; } 
             else if (p.x + this.w < bird.x && !p.scored) {
                 p.scored = true; score++;
-                if (score % 10 === 0) { this.dx += 0.8; if (this.gap > 105) this.gap -= 5; }
+                if (score % 10 === 0) { this.dx += 0.8; if (this.gap > 115) this.gap -= 5; }
             }
         }
     }
@@ -151,28 +153,38 @@ const pipes = {
 
 // --- ENGINE ---
 function draw(){
+    // Background fills the entire screen
     if (bgImg.complete) { ctx.drawImage(bgImg, 0, 0, gameWidth, gameHeight); }
     else { ctx.fillStyle = "#000"; ctx.fillRect(0, 0, gameWidth, gameHeight); }
-    starfield.draw(); pipes.draw(); bird.draw();
-    ctx.fillStyle = "#28ff28"; ctx.font = "bold 35px Courier New";
-    ctx.fillText(score, gameWidth/2 - 15, 60);
+    
+    starfield.draw(); 
+    pipes.draw(); 
+    bird.draw();
+
+    // UI adjusted for full screen
+    ctx.fillStyle = "#28ff28"; 
+    ctx.font = "bold 40px Courier New";
+    ctx.fillText(score, gameWidth/2 - 15, 80);
+
     if(!gamePlaying){
-        ctx.fillStyle = "rgba(40, 255, 40, 0.9)"; ctx.font = "bold 22px Courier New";
-        ctx.fillText("INITIATE SEQUENCE", 50, 250);
+        ctx.fillStyle = "rgba(40, 255, 40, 0.9)"; 
+        ctx.font = "bold 24px Courier New";
+        ctx.textAlign = "center";
+        ctx.fillText("INITIATE SEQUENCE", gameWidth/2, gameHeight/2 + 80);
+        ctx.textAlign = "start";
     }
 }
 
 function loop(){ starfield.update(); bird.update(); pipes.update(); draw(); frames++; requestAnimationFrame(loop); }
 
 function gameOver(){
-    gamePlaying = false; bird.y = 150; bird.speed = 0;
-    pipes.position = []; pipes.dx = 3.0; pipes.gap = 140; score = 0; frames = 0;
+    gamePlaying = false; bird.y = gameHeight/2; bird.speed = 0;
+    pipes.position = []; pipes.dx = 3.5; pipes.gap = 150; score = 0; frames = 0;
     music.pause(); music.currentTime = 0;
 }
 
-// --- UPDATED CONTROLS FOR MOBILE ---
 function handleAction(e) {
-    if (e) e.preventDefault(); // STOPS THE PHONE FROM SCROLLING
+    if (e) e.preventDefault();
     if(!gamePlaying){
         gamePlaying = true;
         music.play().catch(() => {});
@@ -180,10 +192,20 @@ function handleAction(e) {
     bird.flap();
 }
 
-// Listen for both desktop clicks and mobile taps
 window.addEventListener("mousedown", handleAction);
 window.addEventListener("touchstart", handleAction, { passive: false }); 
 window.addEventListener("keydown", (e) => { if(e.code === "Space") handleAction(); });
+
+// Handle screen rotation or resizing
+window.addEventListener("resize", () => {
+    gameWidth = window.innerWidth;
+    gameHeight = window.innerHeight;
+    cvs.width = gameWidth * dpr;
+    cvs.height = gameHeight * dpr;
+    ctx.scale(dpr, dpr);
+    ctx.imageSmoothingEnabled = false;
+    bird.y = gameHeight / 2;
+});
 
 loop();
 </script>
