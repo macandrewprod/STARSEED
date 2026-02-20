@@ -223,7 +223,6 @@ saveUserBtn.addEventListener("click", () => {
     }
 });
 
-// Menu Opening Logic (Handled in handleAction now)
 function openMainMenu() {
     isViewingUI = true;
     updateVesselMenu();
@@ -235,51 +234,29 @@ closeMenuBtn.addEventListener("click", () => {
     setTimeout(() => { isViewingUI = false; }, 100);
 });
 
-// Vessel Selection Logic
 function updateVesselMenu() {
-    if (selectedBird === 1) {
-        v1Select.classList.add("active"); v2Select.classList.remove("active");
-    } else {
-        v2Select.classList.add("active"); v1Select.classList.remove("active");
-    }
+    if (selectedBird === 1) { v1Select.classList.add("active"); v2Select.classList.remove("active"); } 
+    else { v2Select.classList.add("active"); v1Select.classList.remove("active"); }
     
-    if (bird2Unlocked) {
-        imgV2.style.opacity = "1"; v2Lock.style.display = "none";
-    } else {
-        imgV2.style.opacity = "0.3"; v2Lock.style.display = "block";
-    }
+    if (bird2Unlocked) { imgV2.style.opacity = "1"; v2Lock.style.display = "none"; } 
+    else { imgV2.style.opacity = "0.3"; v2Lock.style.display = "block"; }
 }
 
 v1Select.addEventListener("click", () => { selectedBird = 1; updateVesselMenu(); });
-v2Select.addEventListener("click", () => { 
-    if (bird2Unlocked) { selectedBird = 2; updateVesselMenu(); } 
-});
+v2Select.addEventListener("click", () => { if (bird2Unlocked) { selectedBird = 2; updateVesselMenu(); } });
 
-// Audio Mute Logic
 menuMuteBtn.addEventListener("click", () => {
     isMuted = !isMuted;
-    music.muted = isMuted;
-    sound47.muted = isMuted;
+    music.muted = isMuted; sound47.muted = isMuted;
     if (isMuted) {
-        menuMuteBtn.innerText = "AUDIO: OFF";
-        menuMuteBtn.style.color = "#ff2828"; menuMuteBtn.style.borderColor = "#ff2828";
+        menuMuteBtn.innerText = "AUDIO: OFF"; menuMuteBtn.style.color = "#ff2828"; menuMuteBtn.style.borderColor = "#ff2828";
     } else {
-        menuMuteBtn.innerText = "AUDIO: ON";
-        menuMuteBtn.style.color = "#28ff28"; menuMuteBtn.style.borderColor = "#28ff28";
+        menuMuteBtn.innerText = "AUDIO: ON"; menuMuteBtn.style.color = "#28ff28"; menuMuteBtn.style.borderColor = "#28ff28";
     }
 });
 
-// Leaderboard Logic
-menuLbBtn.addEventListener("click", () => {
-    mainMenuUI.classList.add("hidden");
-    lbUI.classList.remove("hidden");
-    renderLeaderboard();
-});
-
-closeLbBtn.addEventListener("click", () => {
-    lbUI.classList.add("hidden");
-    mainMenuUI.classList.remove("hidden"); 
-});
+menuLbBtn.addEventListener("click", () => { mainMenuUI.classList.add("hidden"); lbUI.classList.remove("hidden"); renderLeaderboard(); });
+closeLbBtn.addEventListener("click", () => { lbUI.classList.add("hidden"); mainMenuUI.classList.remove("hidden"); });
 
 if (!username) { loginUI.classList.remove("hidden"); }
 
@@ -324,7 +301,6 @@ const bird = {
         ctx.restore();
     },
     update: function() {
-        // UPDATED: Character floats higher when idle (y=180 instead of 220)
         if (!gamePlaying && !isDead) { this.y = 180 + Math.cos(frames/15) * 10; return; }
         if (isDead) return;
         this.speed += this.gravity; this.y += this.speed;
@@ -378,12 +354,27 @@ function draw(){
 
     if (score >= 47 && hueShift < 160) { hueShift += 1.5; cvs.style.filter = `hue-rotate(${Math.floor(hueShift)}deg)`; }
 
+    // --- UPDATED REACTIVE BACKGROUND ---
     if (bgImg.complete) {
-        let scale = Math.max(gameWidth / bgImg.width, gameHeight / bgImg.height);
-        let x = (gameWidth / 2) - (bgImg.width / 2) * scale; let y = (gameHeight) - (bgImg.height * scale); 
+        let baseScale = Math.max(gameWidth / bgImg.width, gameHeight / bgImg.height);
+        let beat = (bassPulse > 130) ? ((bassPulse - 130) / 125) : 0;
+        
+        // Pumping scale logic
+        let reactiveScale = baseScale * (1 + beat * 0.05); 
+        let x = (gameWidth / 2) - (bgImg.width / 2) * reactiveScale; 
+        let y = (gameHeight) - (bgImg.height * reactiveScale) + (beat * 10); 
+        
         ctx.save();
-        if (bassPulse > 130) { ctx.shadowColor = "#28ff28"; ctx.shadowBlur = ((bassPulse - 130) / 125) * 50 + 10; }
-        ctx.drawImage(bgImg, Math.floor(x), Math.floor(y), Math.floor(bgImg.width * scale), Math.floor(bgImg.height * scale));
+        ctx.drawImage(bgImg, Math.floor(x), Math.floor(y), Math.floor(bgImg.width * reactiveScale), Math.floor(bgImg.height * reactiveScale));
+        
+        // Additive Bloom Logic
+        if (beat > 0) {
+            ctx.globalCompositeOperation = "lighter";
+            ctx.globalAlpha = beat * 0.8; 
+            ctx.shadowColor = "#28ff28";
+            ctx.shadowBlur = beat * 40 + 10;
+            ctx.drawImage(bgImg, Math.floor(x), Math.floor(y), Math.floor(bgImg.width * reactiveScale), Math.floor(bgImg.height * reactiveScale));
+        }
         ctx.restore();
     } else { ctx.fillStyle = "#000"; ctx.fillRect(0, 0, gameWidth, gameHeight); }
     
@@ -394,7 +385,6 @@ function draw(){
     if (gamePlaying) { ctx.fillStyle = "#28ff28"; ctx.font = "bold 45px Courier New"; ctx.textAlign = "center"; ctx.fillText(score, gameWidth/2, 80); }
 
     if(!gamePlaying && !isDead){
-        // UPDATED: High Score removed. Replaced with Menu button text.
         ctx.fillStyle = "rgba(40, 255, 40, 0.7)"; ctx.font = "bold 16px Courier New"; ctx.textAlign = "center"; 
         ctx.fillText("[ MENU ]", gameWidth/2, 50);
         
@@ -447,7 +437,6 @@ function handleAction(e) {
         else { touchX = (e.clientX - rect.left) * (gameWidth / rect.width); touchY = (e.clientY - rect.top) * (gameHeight / rect.height); }
     }
 
-    // UPDATED: Check for tap on the new "[ MENU ]" text area
     if (!gamePlaying && !isDead && touchY && touchY < 70 && touchX > gameWidth/2 - 50 && touchX < gameWidth/2 + 50) {
         openMainMenu(); return;
     }
