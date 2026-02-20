@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>STARSEED - Full Screen Edition</title>
+    <title>STARSEED - Mobile Priority</title>
     <style>
         body, html {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: #0d0d0d;
+            background-color: #000;
             overflow: hidden;
             display: flex;
             justify-content: center;
@@ -19,25 +19,35 @@
             -webkit-user-select: none;
             touch-action: none;
         }
+        #game-container {
+            position: relative;
+            /* This forces the iPhone aspect ratio */
+            aspect-ratio: 9 / 16;
+            height: 100vh;
+            max-width: 100vw;
+            background-color: #0d0d0d;
+            box-shadow: 0 0 50px rgba(40, 255, 40, 0.1);
+        }
         canvas {
             display: block;
-            width: 100vw;
-            height: 100vh;
-            /* Ensures the background image fills the screen without distorting */
-            object-fit: cover; 
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
         }
     </style>
 </head>
 <body>
 
+<div id="game-container"></div>
+
 <script>
-// --- ADAPTIVE CONFIGURATION ---
+const container = document.getElementById('game-container');
 const cvs = document.createElement("canvas");
 const ctx = cvs.getContext("2d");
 
-// We now grab the exact width and height of your phone screen
-let gameWidth = window.innerWidth;
-let gameHeight = window.innerHeight;
+// INTERNAL RESOLUTION (Fixed for consistent physics)
+const gameWidth = 360;
+const gameHeight = 640;
 const dpr = window.devicePixelRatio || 1;
 
 cvs.width = gameWidth * dpr;
@@ -45,7 +55,7 @@ cvs.height = gameHeight * dpr;
 ctx.scale(dpr, dpr);
 
 ctx.imageSmoothingEnabled = false;
-document.body.appendChild(cvs);
+container.appendChild(cvs);
 
 // --- ASSETS ---
 const birdImg = new Image(); birdImg.src = "bird.png"; 
@@ -62,12 +72,12 @@ let score = 0;
 const starfield = {
     particles: [],
     init: function() {
-        for(let i = 0; i < 150; i++) { 
+        for(let i = 0; i < 100; i++) { 
             this.particles.push({
                 x: Math.random() * gameWidth,
                 y: Math.random() * gameHeight,
-                size: Math.random() * 0.8 + 0.4, 
-                speed: Math.random() * 1.5 + 0.1,
+                size: Math.random() * 0.9 + 0.4, 
+                speed: Math.random() * 1.2 + 0.1,
                 opacity: Math.random() 
             });
         }
@@ -83,7 +93,7 @@ const starfield = {
         }
     },
     update: function() {
-        let globalSpeed = gamePlaying ? 3.0 : 0.3; 
+        let globalSpeed = gamePlaying ? 2.5 : 0.3; 
         for(let p of this.particles) {
             p.x -= (p.speed * globalSpeed);
             if(p.x < 0) { p.x = gameWidth; p.y = Math.random() * gameHeight; }
@@ -92,17 +102,15 @@ const starfield = {
 };
 starfield.init();
 
-// --- BIRD OBJECT (POSITIONED RELATIVELY) ---
+// --- BIRD ---
 const bird = {
-    x: 50,
-    y: gameHeight / 2, // Starts in the center of whatever screen size
-    w: 45, h: 55, speed: 0, gravity: 0.3, jump: 5.5,    
+    x: 60, y: 250, w: 45, h: 55, speed: 0, gravity: 0.28, jump: 5.2,    
     draw: function() {
         if (birdImg.complete) { ctx.drawImage(birdImg, this.x, this.y, this.w, this.h); }
         else { ctx.fillStyle = "#28ff28"; ctx.fillRect(this.x, this.y, this.w, this.h); }
     },
     update: function() {
-        if (!gamePlaying) { this.y = (gameHeight/2) + Math.cos(frames/15) * 15; return; }
+        if (!gamePlaying) { this.y = 250 + Math.cos(frames/15) * 10; return; }
         this.speed += this.gravity;
         this.y += this.speed;
         if (this.y + this.h >= gameHeight || this.y <= 0) { gameOver(); }
@@ -110,15 +118,15 @@ const bird = {
     flap: function() { this.speed = -this.jump; }
 };
 
-// --- PIPES OBJECT ---
+// --- PIPES ---
 const pipes = {
-    position: [], w: 55, h: 400, gap: 150, dx: 3.5, 
+    position: [], w: 55, h: 450, gap: 160, dx: 3.2, 
     draw: function() {
         for(let p of this.position){
             let topY = p.y;
             let bottomY = p.y + this.h + p.currentGap;
             ctx.save();
-            ctx.shadowColor = "#FFFFFF"; ctx.shadowBlur = 20;
+            ctx.shadowColor = "#FFFFFF"; ctx.shadowBlur = 15;
             if (pipeImg.complete) {
                 ctx.save();
                 ctx.translate(p.x + this.w / 2, topY + this.h / 2);
@@ -132,28 +140,27 @@ const pipes = {
     },
     update: function() {
         if(!gamePlaying) return;
-        if(frames % 90 == 0){
-            this.position.push({ x: gameWidth, y: Math.floor(Math.random() * (-100 - -300 + 1) + -300), currentGap: this.gap, scored: false });
+        if(frames % 100 == 0){
+            this.position.push({ x: gameWidth, y: Math.floor(Math.random() * (-150 - -350 + 1) + -350), currentGap: this.gap, scored: false });
         }
         for(let i = 0; i < this.position.length; i++){
             let p = this.position[i];
             p.x -= this.dx;
-            if( bird.x + bird.w - 10 > p.x && bird.x + 10 < p.x + this.w && 
+            if( bird.x + 10 < p.x + this.w && bird.x + bird.w - 10 > p.x && 
                (bird.y + 10 < p.y + this.h || bird.y + bird.h - 10 > p.y + this.h + p.currentGap)){
                 gameOver(); return; 
             }
             if(p.x + this.w <= 0){ this.position.shift(); i--; } 
             else if (p.x + this.w < bird.x && !p.scored) {
                 p.scored = true; score++;
-                if (score % 10 === 0) { this.dx += 0.8; if (this.gap > 115) this.gap -= 5; }
+                if (score % 10 === 0) { this.dx += 0.7; if (this.gap > 130) this.gap -= 5; }
             }
         }
     }
 };
 
-// --- ENGINE ---
+// --- MAIN LOOP ---
 function draw(){
-    // Background fills the entire screen
     if (bgImg.complete) { ctx.drawImage(bgImg, 0, 0, gameWidth, gameHeight); }
     else { ctx.fillStyle = "#000"; ctx.fillRect(0, 0, gameWidth, gameHeight); }
     
@@ -161,30 +168,28 @@ function draw(){
     pipes.draw(); 
     bird.draw();
 
-    // UI adjusted for full screen
     ctx.fillStyle = "#28ff28"; 
     ctx.font = "bold 40px Courier New";
-    ctx.fillText(score, gameWidth/2 - 15, 80);
+    ctx.textAlign = "center";
+    ctx.fillText(score, gameWidth/2, 80);
 
     if(!gamePlaying){
         ctx.fillStyle = "rgba(40, 255, 40, 0.9)"; 
-        ctx.font = "bold 24px Courier New";
-        ctx.textAlign = "center";
-        ctx.fillText("INITIATE SEQUENCE", gameWidth/2, gameHeight/2 + 80);
-        ctx.textAlign = "start";
+        ctx.font = "bold 22px Courier New";
+        ctx.fillText("INITIATE SEQUENCE", gameWidth/2, gameHeight/2 + 50);
     }
 }
 
 function loop(){ starfield.update(); bird.update(); pipes.update(); draw(); frames++; requestAnimationFrame(loop); }
 
 function gameOver(){
-    gamePlaying = false; bird.y = gameHeight/2; bird.speed = 0;
-    pipes.position = []; pipes.dx = 3.5; pipes.gap = 150; score = 0; frames = 0;
+    gamePlaying = false; bird.y = 250; bird.speed = 0;
+    pipes.position = []; pipes.dx = 3.2; pipes.gap = 160; score = 0; frames = 0;
     music.pause(); music.currentTime = 0;
 }
 
 function handleAction(e) {
-    if (e) e.preventDefault();
+    if (e && e.type === "touchstart") e.preventDefault();
     if(!gamePlaying){
         gamePlaying = true;
         music.play().catch(() => {});
@@ -195,17 +200,6 @@ function handleAction(e) {
 window.addEventListener("mousedown", handleAction);
 window.addEventListener("touchstart", handleAction, { passive: false }); 
 window.addEventListener("keydown", (e) => { if(e.code === "Space") handleAction(); });
-
-// Handle screen rotation or resizing
-window.addEventListener("resize", () => {
-    gameWidth = window.innerWidth;
-    gameHeight = window.innerHeight;
-    cvs.width = gameWidth * dpr;
-    cvs.height = gameHeight * dpr;
-    ctx.scale(dpr, dpr);
-    ctx.imageSmoothingEnabled = false;
-    bird.y = gameHeight / 2;
-});
 
 loop();
 </script>
