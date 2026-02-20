@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STARSEED - Hardware Shift</title>
+    <title>STARSEED - Speed Cap & 60 Drop</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -23,7 +23,6 @@
             image-rendering: -moz-pixelated;
             image-rendering: pixelated;
             image-rendering: crisp-edges;
-            /* Added a CSS transition for an ultra-smooth shift */
             transition: filter 0.1s linear; 
         }
     </style>
@@ -189,7 +188,8 @@ const pipes = {
         
         if(frames % 90 == 0){
             let minY, maxY;
-            if (score < 47) { minY = -240; maxY = -200; } 
+            // DELAYED DROP: Hard falls now wait until score 60
+            if (score < 60) { minY = -240; maxY = -200; } 
             else { minY = -320; maxY = -120; }
             let randomY = Math.floor(Math.random() * (maxY - minY + 1) + minY);
             this.position.push({ x: gameWidth, y: randomY, currentGap: this.gap, scored: false });
@@ -216,9 +216,17 @@ const pipes = {
                         justUnlockedBird2 = true; 
                     }
                 }
+                
+                // --- TUNED SCALING LOGIC ---
                 if (score % 10 === 0) { 
-                    this.dx += 0.8; 
-                    if (score >= 47 && this.gap > 115) { this.gap -= 5; }
+                    // SPEED CAP: Maxes out at 40 points
+                    if (score <= 40) {
+                        this.dx += 0.8; 
+                    }
+                    // GAP SQUEEZE: Starts shrinking at 60 points
+                    if (score >= 60 && this.gap > 115) { 
+                        this.gap -= 5; 
+                    }
                 }
             }
         }
@@ -241,10 +249,9 @@ function draw(){
     ctx.imageSmoothingEnabled = false;
     updateAudioData(); 
 
-    // --- HARDWARE SHIFT LOGIC ---
+    // THE DIMENSIONAL SHIFT (Still triggers at 47)
     if (score >= 47 && hueShift < 160) {
         hueShift += 1.5; 
-        // Applies the shift directly to the CSS of the canvas DOM element
         cvs.style.filter = `hue-rotate(${Math.floor(hueShift)}deg)`;
     }
 
@@ -346,7 +353,6 @@ function handleAction(e) {
         isDead = false; bird.y = 220; bird.speed = 0; pipes.position = [];
         pipes.dx = 3.5; pipes.gap = 140; score = 0; frames = 0; 
         
-        // --- HARDWARE SHIFT RESET ---
         hueShift = 0; 
         cvs.style.filter = `hue-rotate(0deg)`;
         return;
