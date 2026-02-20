@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STARSEED - The Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>STARSEED - Mobile Edition</title>
     <style>
         body {
             margin: 0;
@@ -15,9 +15,14 @@
             height: 100vh;
             overflow: hidden;
             font-family: 'Courier New', Courier, monospace;
+            /* Prevents accidental highlighting on mobile */
+            user-select: none; 
+            -webkit-user-select: none;
+            touch-action: none; 
         }
         canvas {
             display: block;
+            background-color: #000;
         }
     </style>
 </head>
@@ -42,18 +47,10 @@ ctx.imageSmoothingEnabled = false;
 document.body.appendChild(cvs);
 
 // --- LOAD ASSETS ---
-const birdImg = new Image();
-birdImg.src = "bird.png"; 
-
-const pipeImg = new Image();
-pipeImg.src = "pillar.png"; 
-
-const bgImg = new Image();
-bgImg.src = "bg.png"; 
-
-const music = new Audio();
-music.src = "music.mp3";
-music.loop = true;
+const birdImg = new Image(); birdImg.src = "bird.png"; 
+const pipeImg = new Image(); pipeImg.src = "pillar.png"; 
+const bgImg = new Image(); bgImg.src = "bg.png"; 
+const music = new Audio(); music.src = "music.mp3"; music.loop = true;
 
 // --- VARIABLES ---
 let gamePlaying = false;
@@ -88,10 +85,7 @@ const starfield = {
         let globalSpeed = gamePlaying ? 3.0 : 0.3; 
         for(let p of this.particles) {
             p.x -= (p.speed * globalSpeed);
-            if(p.x < 0) {
-                p.x = gameWidth;
-                p.y = Math.random() * gameHeight;
-            }
+            if(p.x < 0) { p.x = gameWidth; p.y = Math.random() * gameHeight; }
         }
     }
 };
@@ -99,117 +93,57 @@ starfield.init();
 
 // --- BIRD OBJECT ---
 const bird = {
-    x: 50,
-    y: 150,
-    w: 45, 
-    h: 55, 
-    speed: 0,
-    gravity: 0.3, 
-    jump: 5.0,    
-    
+    x: 50, y: 150, w: 45, h: 55, speed: 0, gravity: 0.3, jump: 5.0,    
     draw: function() {
-        if (birdImg.complete) {
-            ctx.drawImage(birdImg, this.x, this.y, this.w, this.h);
-        } else {
-            ctx.fillStyle = "#28ff28";
-            ctx.fillRect(this.x, this.y, this.w, this.h);
-        }
+        if (birdImg.complete) { ctx.drawImage(birdImg, this.x, this.y, this.w, this.h); }
+        else { ctx.fillStyle = "#28ff28"; ctx.fillRect(this.x, this.y, this.w, this.h); }
     },
     update: function() {
-        if (!gamePlaying) {
-             this.y = 150 + Math.cos(frames/15) * 5; 
-             return;
-        }
+        if (!gamePlaying) { this.y = 150 + Math.cos(frames/15) * 5; return; }
         this.speed += this.gravity;
         this.y += this.speed;
-
-        if (this.y + this.h >= gameHeight || this.y <= 0) {
-            gameOver();
-        }
+        if (this.y + this.h >= gameHeight || this.y <= 0) { gameOver(); }
     },
-    flap: function() {
-        this.speed = -this.jump;
-    }
+    flap: function() { this.speed = -this.jump; }
 };
 
 // --- PIPES OBJECT ---
 const pipes = {
-    position: [],
-    w: 52, 
-    h: 380, 
-    gap: 140, 
-    dx: 3.0, 
-
+    position: [], w: 52, h: 380, gap: 140, dx: 3.0, 
     draw: function() {
         for(let p of this.position){
             let topY = p.y;
             let bottomY = p.y + this.h + p.currentGap;
-
-            // --- ADDED WHITE GLOW ---
-            ctx.save(); // Save current context state
-            ctx.shadowColor = "#FFFFFF"; // White glow color
-            ctx.shadowBlur = 20; // Intensity of the glow
-            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 0;
-
+            ctx.save();
+            ctx.shadowColor = "#FFFFFF"; ctx.shadowBlur = 20;
             if (pipeImg.complete) {
-                // Draw Top Pipe (Flipped)
                 ctx.save();
                 ctx.translate(p.x + this.w / 2, topY + this.h / 2);
                 ctx.scale(1, -1);
                 ctx.drawImage(pipeImg, -this.w / 2, -this.h / 2, this.w, this.h);
                 ctx.restore();
-                
-                // Draw Bottom Pipe
                 ctx.drawImage(pipeImg, p.x, bottomY, this.w, this.h);
-            } else {
-                // Fallback if image isn't loaded
-                ctx.fillStyle = "#1a1a1a";
-                ctx.strokeStyle = "#28ff28";
-                ctx.lineWidth = 2;
-                ctx.strokeRect(p.x, topY, this.w, this.h);
-                ctx.strokeRect(p.x, bottomY, this.w, this.h);
             }
-            
-            ctx.restore(); // Restore context state (removes glow for other objects)
-            // --- END WHITE GLOW ---
+            ctx.restore();
         }
     },
-
     update: function() {
         if(!gamePlaying) return;
-
         let spawnRate = Math.max(60, 100 - (this.dx * 10));
         if(frames % Math.floor(spawnRate) == 0){
-            this.position.push({
-                x: gameWidth,
-                y: Math.floor(Math.random() * (-50 - -250 + 1) + -250),
-                currentGap: this.gap,
-                scored: false
-            });
+            this.position.push({ x: gameWidth, y: Math.floor(Math.random() * (-50 - -250 + 1) + -250), currentGap: this.gap, scored: false });
         }
-
         for(let i = 0; i < this.position.length; i++){
             let p = this.position[i];
             p.x -= this.dx;
-
             if( bird.x + bird.w - 10 > p.x && bird.x + 10 < p.x + this.w && 
                (bird.y + 10 < p.y + this.h || bird.y + bird.h - 10 > p.y + this.h + p.currentGap)){
-                gameOver();
-                return; 
+                gameOver(); return; 
             }
-
-            if(p.x + this.w <= 0){
-                this.position.shift();
-                i--; 
-            } else if (p.x + this.w < bird.x && !p.scored) {
-                p.scored = true;
-                score++;
-                
-                if (score % 10 === 0) {
-                    this.dx += 0.8; 
-                    if (this.gap > 105) this.gap -= 5; 
-                }
+            if(p.x + this.w <= 0){ this.position.shift(); i--; } 
+            else if (p.x + this.w < bird.x && !p.scored) {
+                p.scored = true; score++;
+                if (score % 10 === 0) { this.dx += 0.8; if (this.gap > 105) this.gap -= 5; }
             }
         }
     }
@@ -217,59 +151,39 @@ const pipes = {
 
 // --- ENGINE ---
 function draw(){
-    if (bgImg.complete) {
-        ctx.drawImage(bgImg, 0, 0, gameWidth, gameHeight);
-    } else {
-        ctx.fillStyle = "#000"; 
-        ctx.fillRect(0, 0, gameWidth, gameHeight);
-    }
-
-    starfield.draw();
-    pipes.draw();
-    bird.draw();
-
-    ctx.fillStyle = "#28ff28";
-    ctx.font = "bold 35px Courier New";
-    ctx.shadowColor = "#000";
-    ctx.shadowBlur = 4;
+    if (bgImg.complete) { ctx.drawImage(bgImg, 0, 0, gameWidth, gameHeight); }
+    else { ctx.fillStyle = "#000"; ctx.fillRect(0, 0, gameWidth, gameHeight); }
+    starfield.draw(); pipes.draw(); bird.draw();
+    ctx.fillStyle = "#28ff28"; ctx.font = "bold 35px Courier New";
     ctx.fillText(score, gameWidth/2 - 15, 60);
-
     if(!gamePlaying){
-        ctx.fillStyle = "rgba(40, 255, 40, 0.9)"; 
-        ctx.font = "bold 22px Courier New";
+        ctx.fillStyle = "rgba(40, 255, 40, 0.9)"; ctx.font = "bold 22px Courier New";
         ctx.fillText("INITIATE SEQUENCE", 50, 250);
     }
 }
 
-function loop(){
-    starfield.update();
-    bird.update();
-    pipes.update();
-    draw();
-    frames++;
-    requestAnimationFrame(loop);
-}
+function loop(){ starfield.update(); bird.update(); pipes.update(); draw(); frames++; requestAnimationFrame(loop); }
 
 function gameOver(){
-    gamePlaying = false;
-    bird.y = 150;
-    bird.speed = 0;
-    pipes.position = [];
-    pipes.dx = 3.0; 
-    pipes.gap = 140; 
-    score = 0;
-    frames = 0;
-    music.pause();
-    music.currentTime = 0;
+    gamePlaying = false; bird.y = 150; bird.speed = 0;
+    pipes.position = []; pipes.dx = 3.0; pipes.gap = 140; score = 0; frames = 0;
+    music.pause(); music.currentTime = 0;
 }
 
-window.addEventListener("mousedown", () => {
+// --- UPDATED CONTROLS FOR MOBILE ---
+function handleAction(e) {
+    if (e) e.preventDefault(); // STOPS THE PHONE FROM SCROLLING
     if(!gamePlaying){
         gamePlaying = true;
         music.play().catch(() => {});
     }
     bird.flap();
-});
+}
+
+// Listen for both desktop clicks and mobile taps
+window.addEventListener("mousedown", handleAction);
+window.addEventListener("touchstart", handleAction, { passive: false }); 
+window.addEventListener("keydown", (e) => { if(e.code === "Space") handleAction(); });
 
 loop();
 </script>
