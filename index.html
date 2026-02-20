@@ -94,8 +94,7 @@
         </div>
 
         <button id="menu-lb-btn" class="ui-btn" style="width: 220px; margin-bottom: 15px;">HIGHEST SCORES</button>
-        <button id="menu-mute-btn" class="ui-btn" style="width: 220px; margin-bottom: 15px; background: transparent; border: 2px solid #28ff28; color: #28ff28;">AUDIO: ON</button>
-        <button id="switch-user-btn" class="ui-btn" style="width: 220px; margin-bottom: 25px; background: transparent; border: 2px dashed #ff2828; color: #ff2828;">SWITCH ALIAS</button>
+        <button id="menu-mute-btn" class="ui-btn" style="width: 220px; margin-bottom: 25px; background: transparent; border: 2px solid #28ff28; color: #28ff28;">AUDIO: ON</button>
         <button id="close-menu-btn" class="ui-btn" style="width: 220px; background: #444; color: #fff;">RETURN TO DECK</button>
     </div>
 
@@ -141,7 +140,6 @@ const closeLbBtn = document.getElementById("close-lb-btn");
 const menuLbBtn = document.getElementById("menu-lb-btn");
 const closeMenuBtn = document.getElementById("close-menu-btn");
 const menuMuteBtn = document.getElementById("menu-mute-btn");
-const switchUserBtn = document.getElementById("switch-user-btn");
 const lbList = document.getElementById("leaderboard-list");
 
 const v1Select = document.getElementById("v1-select");
@@ -249,12 +247,6 @@ saveUserBtn.addEventListener("click", () => {
     }
 });
 
-// Switch User Logic
-switchUserBtn.addEventListener("click", () => {
-    username = ""; localStorage.removeItem("starseedUsername"); usernameInput.value = "";
-    mainMenuUI.classList.add("hidden"); loginUI.classList.remove("hidden");
-});
-
 function openMainMenu() {
     isViewingUI = true; updateVesselMenu(); mainMenuUI.classList.remove("hidden");
 }
@@ -315,42 +307,27 @@ const starfield = {
 };
 starfield.init();
 
-// --- NEW VESSEL TRAIL SYSTEM ---
 const vesselTrail = {
-    particles: [],
-    spawnTimer: 0,
+    particles: [], spawnTimer: 0,
     spawn: function(x, y, w, h) {
-        this.spawnTimer++;
-        if (this.spawnTimer % 2 !== 0) return; // Emit every 2 frames for density
-        // Spawn near the back engine of the vessel
-        const spawnX = x + 5; 
-        const spawnY = y + h / 2 + (Math.random() * 6 - 3);
+        this.spawnTimer++; if (this.spawnTimer % 2 !== 0) return;
+        const spawnX = x + 5; const spawnY = y + h / 2 + (Math.random() * 6 - 3);
         this.particles.push({
-            x: spawnX, y: spawnY,
-            vx: (Math.random() - 1.2) * 2.5, // Drift backward fast
-            vy: (Math.random() - 0.5) * 0.8, // Slight vertical scatter
-            size: Math.random() * 1.8 + 0.8, // Small, sharp stars
-            alpha: 1.0,
-            decay: 0.03 + Math.random() * 0.02
+            x: spawnX, y: spawnY, vx: (Math.random() - 1.2) * 2.5, vy: (Math.random() - 0.5) * 0.8,
+            size: Math.random() * 1.8 + 0.8, alpha: 1.0, decay: 0.03 + Math.random() * 0.02
         });
     },
     update: function() {
         let globalSpeed = (gamePlaying || isDead || isDying) ? 2.5 : 0.3;
         for (let i = this.particles.length - 1; i >= 0; i--) {
-            let p = this.particles[i];
-            // Move backward relative to game speed + own velocity
-            p.x -= (globalSpeed * 1.2) + p.vx; 
-            p.y += p.vy;
-            p.alpha -= p.decay;
+            let p = this.particles[i]; p.x -= (globalSpeed * 1.2) + p.vx; p.y += p.vy; p.alpha -= p.decay;
             if (p.alpha <= 0 || p.x < -10) { this.particles.splice(i, 1); }
         }
     },
     draw: function() {
-        ctx.save();
-        ctx.globalCompositeOperation = "lighter"; // Additive glow for stars
+        ctx.save(); ctx.globalCompositeOperation = "lighter";
         for (let p of this.particles) {
-            ctx.fillStyle = `rgba(40, 255, 40, ${p.alpha})`;
-            ctx.beginPath(); ctx.rect(p.x, p.y, p.size, p.size); ctx.fill();
+            ctx.fillStyle = `rgba(40, 255, 40, ${p.alpha})`; ctx.beginPath(); ctx.rect(p.x, p.y, p.size, p.size); ctx.fill();
         }
         ctx.restore();
     }
@@ -358,11 +335,8 @@ const vesselTrail = {
 
 function startDeathAnimation() {
     if (isDying || isDead) return;
-    gamePlaying = false;
-    isDying = true;
-    music.pause(); music.currentTime = 0;
-    currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
-    music.src = playlist[currentTrackIndex];
+    gamePlaying = false; isDying = true;
+    music.pause(); music.currentTime = 0; currentTrackIndex = (currentTrackIndex + 1) % playlist.length; music.src = playlist[currentTrackIndex];
 }
 
 const bird = {
@@ -375,25 +349,17 @@ const bird = {
         ctx.restore();
     },
     update: function() {
-        // Spawn trail particles as long as it's not game over screen
-        if (gamePlaying || isDying || (!gamePlaying && !isDead && !isDying)) {
-             vesselTrail.spawn(this.x, this.y, this.w, this.h);
-        }
-
+        if (gamePlaying || isDying || (!gamePlaying && !isDead && !isDying)) { vesselTrail.spawn(this.x, this.y, this.w, this.h); }
         if (!gamePlaying && !isDead && !isDying) { this.y = 180 + Math.cos(frames/15) * 10; return; }
         if (isDead) return;
         
         if (isDying) {
             this.y -= 6; 
-            if (this.y + this.h < -20) {
-                isDying = false;
-                gameOver();
-            }
+            if (this.y + this.h < -20) { isDying = false; gameOver(); }
             return;
         }
 
         this.speed += this.gravity; this.y += this.speed;
-        
         if (this.y + this.h >= gameHeight || this.y <= 0) { startDeathAnimation(); }
     },
     flap: function() { this.speed = -this.jump; }
@@ -403,9 +369,7 @@ const pipes = {
     position: [], w: 50, h: 400, gap: 140, dx: 3.5, opacity: 1.0, 
     draw: function() {
         if (this.opacity <= 0) return; 
-        ctx.save(); 
-        ctx.globalAlpha = this.opacity; 
-        ctx.shadowColor = "#28ff28"; ctx.shadowBlur = 15; ctx.lineWidth = 3; ctx.strokeStyle = "#28ff28";
+        ctx.save(); ctx.globalAlpha = this.opacity; ctx.shadowColor = "#28ff28"; ctx.shadowBlur = 15; ctx.lineWidth = 3; ctx.strokeStyle = "#28ff28";
         for(let p of this.position){
             let topY = Math.floor(p.y), bottomY = Math.floor(p.y + this.h + p.currentGap), pipeX = Math.floor(p.x);
             ctx.strokeRect(pipeX, topY, this.w, this.h); ctx.strokeRect(pipeX, bottomY, this.w, this.h);
@@ -414,11 +378,8 @@ const pipes = {
     },
     update: function() {
         if (isDying) {
-            this.opacity -= 0.03;
-            if (this.opacity < 0) this.opacity = 0;
-            return; 
+            this.opacity -= 0.03; if (this.opacity < 0) this.opacity = 0; return; 
         }
-
         if(!gamePlaying) return; 
 
         if(frames % 90 == 0){
@@ -464,29 +425,18 @@ function draw(){
         let beat = (bassPulse > 130) ? ((bassPulse - 130) / 125) : 0;
         
         if (beat > 0) {
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(0, gameHeight - 180, gameWidth, 180);
-            ctx.clip();
-            
+            ctx.save(); ctx.beginPath(); ctx.rect(0, gameHeight - 180, gameWidth, 180); ctx.clip();
             ctx.translate(gameWidth / 2, gameHeight - 90);
-            let pump = 1 + (beat * 0.08); 
-            ctx.scale(pump, pump);
+            let pump = 1 + (beat * 0.08); ctx.scale(pump, pump);
             ctx.translate(-gameWidth / 2, -(gameHeight - 90));
-
-            ctx.globalCompositeOperation = "lighter";
-            ctx.globalAlpha = beat * 0.7; 
-            
+            ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = beat * 0.7; 
             ctx.drawImage(bgImg, Math.floor(x), Math.floor(y), Math.floor(bgImg.width * scale), Math.floor(bgImg.height * scale));
             ctx.drawImage(bgImg, Math.floor(x), Math.floor(y), Math.floor(bgImg.width * scale), Math.floor(bgImg.height * scale));
-            
             ctx.restore();
         }
     } else { ctx.fillStyle = "#000"; ctx.fillRect(0, 0, gameWidth, gameHeight); }
     
-    starfield.draw();
-    vesselTrail.update(); vesselTrail.draw(); // Update and draw trail before pipes/bird
-    pipes.draw(); bird.draw();
+    starfield.draw(); vesselTrail.update(); vesselTrail.draw(); pipes.draw(); bird.draw();
 
     if (isViewingUI || !username) return;
 
@@ -495,7 +445,6 @@ function draw(){
     if(!gamePlaying && !isDead && !isDying){
         ctx.fillStyle = "rgba(40, 255, 40, 0.7)"; ctx.font = "bold 16px Courier New"; ctx.textAlign = "center"; 
         ctx.fillText("[ MENU ]", gameWidth/2, 50);
-        
         ctx.fillStyle = "rgba(40, 255, 40, 0.9)"; ctx.font = "bold 24px Courier New"; ctx.fillText("INITIATE SEQUENCE", gameWidth/2, gameHeight/2 + 20);
         ctx.fillStyle = "#fff"; ctx.font = "bold 12px Courier New"; ctx.fillText("USER: " + username, gameWidth/2, gameHeight/2 + 50);
     }
@@ -513,7 +462,6 @@ function draw(){
         }
 
         ctx.fillStyle = "rgba(40, 255, 40, 0.8)"; ctx.font = "bold 16px Courier New"; ctx.fillText("TAP TO RE-INITIATE", gameWidth/2, gameHeight/2 + 105);
-
         ctx.fillStyle = "rgba(40, 255, 40, 0.1)"; ctx.fillRect(gameWidth/2 - 70, gameHeight/2 + 130, 140, 35);
         ctx.strokeStyle = "#28ff28"; ctx.lineWidth = 2; ctx.strokeRect(gameWidth/2 - 70, gameHeight/2 + 130, 140, 35);
         ctx.fillStyle = "#28ff28"; ctx.font = "bold 16px Courier New"; ctx.fillText("SHARE SCORE", gameWidth/2, gameHeight/2 + 152);
@@ -543,9 +491,7 @@ function handleAction(e) {
 
     if (isDying) return;
 
-    if (!gamePlaying && !isDead && touchY && touchY < 70 && touchX > gameWidth/2 - 50 && touchX < gameWidth/2 + 50) {
-        openMainMenu(); return;
-    }
+    if (!gamePlaying && !isDead && touchY && touchY < 70 && touchX > gameWidth/2 - 50 && touchX < gameWidth/2 + 50) { openMainMenu(); return; }
     
     if(isDead) {
         if (touchX && touchY && touchX > gameWidth/2 - 70 && touchX < gameWidth/2 + 70 && touchY > gameHeight/2 + 130 && touchY < gameHeight/2 + 165) {
@@ -555,9 +501,7 @@ function handleAction(e) {
         }
 
         justUnlockedBird2 = false; isDead = false; bird.y = 180; bird.speed = 0; pipes.position = [];
-        pipes.dx = 3.5; pipes.gap = 140; pipes.opacity = 1.0; score = 0; frames = 0; hueShift = 0; cvs.style.filter = `hue-rotate(0deg)`;
-        // Clear trail on reset
-        vesselTrail.particles = [];
+        pipes.dx = 3.5; pipes.gap = 140; pipes.opacity = 1.0; score = 0; frames = 0; hueShift = 0; cvs.style.filter = `hue-rotate(0deg)`; vesselTrail.particles = [];
         return;
     }
     
