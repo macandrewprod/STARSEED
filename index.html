@@ -307,6 +307,7 @@ const starfield = {
 };
 starfield.init();
 
+// --- VESSEL 1: GREEN STAR TRAIL ---
 const vesselTrail = {
     particles: [], spawnTimer: 0,
     spawn: function(x, y, w, h) {
@@ -325,9 +326,53 @@ const vesselTrail = {
         }
     },
     draw: function() {
+        if (this.particles.length === 0) return;
         ctx.save(); ctx.globalCompositeOperation = "lighter";
         for (let p of this.particles) {
             ctx.fillStyle = `rgba(40, 255, 40, ${p.alpha})`; ctx.beginPath(); ctx.rect(p.x, p.y, p.size, p.size); ctx.fill();
+        }
+        ctx.restore();
+    }
+};
+
+// --- VESSEL 2: FIRE AURA ---
+const fireAura = {
+    particles: [],
+    spawn: function(x, y, w, h) {
+        // Spawn multiple fire particles per frame for a thick, roaring effect
+        for(let i = 0; i < 3; i++) {
+            this.particles.push({
+                x: x + 5 + Math.random() * (w - 10), // Randomly across the body
+                y: y + h - (Math.random() * 15), // Spawn near the bottom/exhaust
+                vx: (Math.random() - 0.5) * 1.5 - 1.5, // Drift slightly backward
+                vy: (Math.random() * -3) - 1, // Drift aggressively UPWARD
+                size: Math.random() * 8 + 4, // Large flames shrinking down
+                color: ['#ffcc00', '#ff6600', '#ff3300', '#cc0000'][Math.floor(Math.random() * 4)], // Yellow to Red
+                alpha: 0.8,
+                decay: 0.04 + Math.random() * 0.04
+            });
+        }
+    },
+    update: function() {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            let p = this.particles[i];
+            p.x += p.vx; 
+            p.y += p.vy; 
+            p.size -= 0.15; // Flames shrink as they rise
+            p.alpha -= p.decay; // Flames burn out
+            if (p.alpha <= 0 || p.size <= 0) { this.particles.splice(i, 1); }
+        }
+    },
+    draw: function() {
+        if (this.particles.length === 0) return;
+        ctx.save(); 
+        ctx.globalCompositeOperation = "lighter"; // Additive blending makes the overlapping flames burn neon bright
+        for (let p of this.particles) {
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = p.alpha; 
+            ctx.beginPath(); 
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); 
+            ctx.fill();
         }
         ctx.restore();
     }
@@ -349,7 +394,15 @@ const bird = {
         ctx.restore();
     },
     update: function() {
-        if (gamePlaying || isDying || (!gamePlaying && !isDead && !isDying)) { vesselTrail.spawn(this.x, this.y, this.w, this.h); }
+        // Trigger the correct particle system based on selected vessel
+        if (gamePlaying || isDying || (!gamePlaying && !isDead && !isDying)) { 
+            if (selectedBird === 1) {
+                vesselTrail.spawn(this.x, this.y, this.w, this.h); 
+            } else if (selectedBird === 2) {
+                fireAura.spawn(this.x, this.y, this.w, this.h);
+            }
+        }
+
         if (!gamePlaying && !isDead && !isDying) { this.y = 180 + Math.cos(frames/15) * 10; return; }
         if (isDead) return;
         
@@ -436,7 +489,13 @@ function draw(){
         }
     } else { ctx.fillStyle = "#000"; ctx.fillRect(0, 0, gameWidth, gameHeight); }
     
-    starfield.draw(); vesselTrail.update(); vesselTrail.draw(); pipes.draw(); bird.draw();
+    starfield.draw(); 
+    
+    // Update and draw the respective particle systems BEFORE the bird so it acts as a trail/aura
+    vesselTrail.update(); vesselTrail.draw(); 
+    fireAura.update(); fireAura.draw();
+    
+    pipes.draw(); bird.draw();
 
     if (isViewingUI || !username) return;
 
@@ -501,7 +560,8 @@ function handleAction(e) {
         }
 
         justUnlockedBird2 = false; isDead = false; bird.y = 180; bird.speed = 0; pipes.position = [];
-        pipes.dx = 3.5; pipes.gap = 140; pipes.opacity = 1.0; score = 0; frames = 0; hueShift = 0; cvs.style.filter = `hue-rotate(0deg)`; vesselTrail.particles = [];
+        pipes.dx = 3.5; pipes.gap = 140; pipes.opacity = 1.0; score = 0; frames = 0; hueShift = 0; cvs.style.filter = `hue-rotate(0deg)`; 
+        vesselTrail.particles = []; fireAura.particles = [];
         return;
     }
     
