@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STARSEED - System Menu</title>
+    <title>STARSEED - Cloud Profiles</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -83,7 +83,7 @@
         <h2 style="margin-bottom: 20px; letter-spacing: 2px;">SYSTEM MENU</h2>
         
         <h3 style="margin-bottom: 15px; color: #fff; font-size: 14px;">SELECT VESSEL</h3>
-        <div style="display: flex; gap: 20px; margin-bottom: 40px;">
+        <div style="display: flex; gap: 20px; margin-bottom: 30px;">
             <div id="v1-select" class="vessel-box active">
                 <img src="bird.png" class="vessel-img" id="img-v1">
             </div>
@@ -94,7 +94,8 @@
         </div>
 
         <button id="menu-lb-btn" class="ui-btn" style="width: 220px; margin-bottom: 15px;">HIGHEST SCORES</button>
-        <button id="menu-mute-btn" class="ui-btn" style="width: 220px; margin-bottom: 25px; background: transparent; border: 2px solid #28ff28; color: #28ff28;">AUDIO: ON</button>
+        <button id="menu-mute-btn" class="ui-btn" style="width: 220px; margin-bottom: 15px; background: transparent; border: 2px solid #28ff28; color: #28ff28;">AUDIO: ON</button>
+        <button id="switch-user-btn" class="ui-btn" style="width: 220px; margin-bottom: 25px; background: transparent; border: 2px dashed #ff2828; color: #ff2828;">SWITCH ALIAS</button>
         <button id="close-menu-btn" class="ui-btn" style="width: 220px; background: #444; color: #fff;">RETURN TO DECK</button>
     </div>
 
@@ -140,6 +141,7 @@ const closeLbBtn = document.getElementById("close-lb-btn");
 const menuLbBtn = document.getElementById("menu-lb-btn");
 const closeMenuBtn = document.getElementById("close-menu-btn");
 const menuMuteBtn = document.getElementById("menu-mute-btn");
+const switchUserBtn = document.getElementById("switch-user-btn");
 const lbList = document.getElementById("leaderboard-list");
 
 const v1Select = document.getElementById("v1-select");
@@ -180,6 +182,21 @@ let highScore = localStorage.getItem("starseedHighScore") || 0;
 let bird2Unlocked = localStorage.getItem("bird2Unlocked") === "true";
 let selectedBird = 1; let justUnlockedBird2 = false; let hueShift = 0;
 
+// SILENT CLOUD SYNC ON BOOT
+if (username) {
+    db.ref('leaderboard/' + username).once('value').then((snapshot) => {
+        if (snapshot.exists()) {
+            let cloudScore = snapshot.val().score || 0;
+            if (cloudScore > highScore) highScore = cloudScore;
+            if (cloudScore >= 47) {
+                bird2Unlocked = true;
+                localStorage.setItem("bird2Unlocked", "true");
+            }
+            localStorage.setItem("starseedHighScore", highScore);
+        }
+    });
+}
+
 // LIVE DATABASE SYNC
 let globalLeaderboard = [];
 db.ref('leaderboard').orderByChild('score').limitToLast(10).on('value', (snapshot) => {
@@ -216,10 +233,30 @@ saveUserBtn.addEventListener("click", () => {
         
         db.ref('leaderboard/' + val).once('value').then((snapshot) => {
             if (!snapshot.exists()) {
+                // Completely new user
                 db.ref('leaderboard/' + val).set({ score: 0 });
+                highScore = 0;
+                bird2Unlocked = false;
+                selectedBird = 1;
+            } else {
+                // Existing user - Download their high score and unlocks
+                let cloudScore = snapshot.val().score || 0;
+                highScore = cloudScore;
+                
+                if (cloudScore >= 47) {
+                    bird2Unlocked = true;
+                    localStorage.setItem("bird2Unlocked", "true");
+                } else {
+                    bird2Unlocked = false;
+                    localStorage.removeItem("bird2Unlocked");
+                    selectedBird = 1;
+                }
             }
+            
             username = val; 
             localStorage.setItem("starseedUsername", username);
+            localStorage.setItem("starseedHighScore", highScore);
+            
             loginUI.classList.add("hidden"); 
             saveUserBtn.innerText = "SYNC IDENTITY";
         }).catch((error) => { 
@@ -227,6 +264,15 @@ saveUserBtn.addEventListener("click", () => {
             saveUserBtn.innerText = "SYNC IDENTITY"; 
         });
     }
+});
+
+// Switch User Logic
+switchUserBtn.addEventListener("click", () => {
+    username = "";
+    localStorage.removeItem("starseedUsername");
+    usernameInput.value = "";
+    mainMenuUI.classList.add("hidden");
+    loginUI.classList.remove("hidden");
 });
 
 function openMainMenu() {
@@ -297,17 +343,13 @@ const starfield = {
 };
 starfield.init();
 
-// --- UPDATED DEATH TRIGGER ---
 function startDeathAnimation() {
     if (isDying || isDead) return;
     gamePlaying = false;
     isDying = true;
     
-    // Kill the music immediately upon impact
     music.pause(); 
     music.currentTime = 0;
-    
-    // Prep the next track in silence
     currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
     music.src = playlist[currentTrackIndex];
 }
@@ -326,7 +368,7 @@ const bird = {
         if (isDead) return;
         
         if (isDying) {
-            this.y -= 6; // Drift upwards
+            this.y -= 6; 
             if (this.y + this.h < -20) {
                 isDying = false;
                 gameOver();
@@ -342,11 +384,11 @@ const bird = {
 };
 
 const pipes = {
-    position: [], w: 50, h: 400, gap: 140, dx: 3.5, opacity: 1.0, // Added global opacity for pipes
+    position: [], w: 50, h: 400, gap: 140, dx: 3.5, opacity: 1.0, 
     draw: function() {
-        if (this.opacity <= 0) return; // Don't draw if fully faded
+        if (this.opacity <= 0) return; 
         ctx.save(); 
-        ctx.globalAlpha = this.opacity; // Apply the fade out
+        ctx.globalAlpha = this.opacity; 
         ctx.shadowColor = "#28ff28"; ctx.shadowBlur = 15; ctx.lineWidth = 3; ctx.strokeStyle = "#28ff28";
         for(let p of this.position){
             let topY = Math.floor(p.y), bottomY = Math.floor(p.y + this.h + p.currentGap), pipeX = Math.floor(p.x);
@@ -355,7 +397,6 @@ const pipes = {
         ctx.restore();
     },
     update: function() {
-        // Fade out pipes during the death drift
         if (isDying) {
             this.opacity -= 0.03;
             if (this.opacity < 0) this.opacity = 0;
@@ -495,7 +536,6 @@ function handleAction(e) {
             return; 
         }
 
-        // Reset all states including pipe opacity
         justUnlockedBird2 = false; isDead = false; bird.y = 180; bird.speed = 0; pipes.position = [];
         pipes.dx = 3.5; pipes.gap = 140; pipes.opacity = 1.0; score = 0; frames = 0; hueShift = 0; cvs.style.filter = `hue-rotate(0deg)`;
         return;
