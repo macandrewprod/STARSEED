@@ -172,7 +172,7 @@ function initAudio() {
 // VARIABLES
 let username = localStorage.getItem("starseedUsername") || "";
 let gamePlaying = false; 
-let isDying = false; // NEW STATE: For the floating death animation
+let isDying = false; 
 let isDead = false; 
 let isViewingUI = false; 
 let frames = 0; let score = 0; let finalScore = 0;
@@ -288,7 +288,6 @@ const starfield = {
         }
     },
     update: function() {
-        // Keeps the stars moving even while dying
         let globalSpeed = (gamePlaying || isDead || isDying) ? 2.5 : 0.3; 
         for(let p of this.particles) {
             p.x -= (p.speed * globalSpeed);
@@ -298,11 +297,19 @@ const starfield = {
 };
 starfield.init();
 
-// --- NEW DEATH ANIMATION TRIGGER ---
+// --- UPDATED DEATH TRIGGER ---
 function startDeathAnimation() {
     if (isDying || isDead) return;
     gamePlaying = false;
     isDying = true;
+    
+    // Kill the music immediately upon impact
+    music.pause(); 
+    music.currentTime = 0;
+    
+    // Prep the next track in silence
+    currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
+    music.src = playlist[currentTrackIndex];
 }
 
 const bird = {
@@ -310,7 +317,6 @@ const bird = {
     draw: function() {
         ctx.save();
         let currentImg = (selectedBird === 1) ? bird1Img : bird2Img;
-        // Keep the glow alive while drifting upwards
         if (bassPulse > 130 && (gamePlaying || isDying)) { ctx.shadowColor = "#28ff28"; ctx.shadowBlur = ((bassPulse - 130) / 125) * 25 + 5; } else { ctx.shadowBlur = 0; }
         if (currentImg.complete) { ctx.drawImage(currentImg, Math.floor(this.x), Math.floor(this.y), this.w, this.h); }
         ctx.restore();
@@ -319,11 +325,9 @@ const bird = {
         if (!gamePlaying && !isDead && !isDying) { this.y = 180 + Math.cos(frames/15) * 10; return; }
         if (isDead) return;
         
-        // --- DEATH DRIFT LOGIC ---
         if (isDying) {
-            this.y -= 6; // Floats upwards off screen
+            this.y -= 6; // Drift upwards
             if (this.y + this.h < -20) {
-                // Once it completely clears the screen, trigger the actual game over UI
                 isDying = false;
                 gameOver();
             }
@@ -332,16 +336,18 @@ const bird = {
 
         this.speed += this.gravity; this.y += this.speed;
         
-        // Floor and ceiling collisions trigger the death drift
         if (this.y + this.h >= gameHeight || this.y <= 0) { startDeathAnimation(); }
     },
     flap: function() { this.speed = -this.jump; }
 };
 
 const pipes = {
-    position: [], w: 50, h: 400, gap: 140, dx: 3.5, 
+    position: [], w: 50, h: 400, gap: 140, dx: 3.5, opacity: 1.0, // Added global opacity for pipes
     draw: function() {
-        ctx.save(); ctx.shadowColor = "#28ff28"; ctx.shadowBlur = 15; ctx.lineWidth = 3; ctx.strokeStyle = "#28ff28";
+        if (this.opacity <= 0) return; // Don't draw if fully faded
+        ctx.save(); 
+        ctx.globalAlpha = this.opacity; // Apply the fade out
+        ctx.shadowColor = "#28ff28"; ctx.shadowBlur = 15; ctx.lineWidth = 3; ctx.strokeStyle = "#28ff28";
         for(let p of this.position){
             let topY = Math.floor(p.y), bottomY = Math.floor(p.y + this.h + p.currentGap), pipeX = Math.floor(p.x);
             ctx.strokeRect(pipeX, topY, this.w, this.h); ctx.strokeRect(pipeX, bottomY, this.w, this.h);
@@ -349,7 +355,15 @@ const pipes = {
         ctx.restore();
     },
     update: function() {
-        if(!gamePlaying) return; // Pipes freeze instantly when gamePlaying becomes false
+        // Fade out pipes during the death drift
+        if (isDying) {
+            this.opacity -= 0.03;
+            if (this.opacity < 0) this.opacity = 0;
+            return; 
+        }
+
+        if(!gamePlaying) return; 
+
         if(frames % 90 == 0){
             let minY, maxY;
             if (score < 60) { minY = -240; maxY = -200; } else { minY = -280; maxY = -160; }
@@ -417,7 +431,7 @@ function draw(){
 
     if (isViewingUI || !username) return;
 
-    if (gamePlaying) { ctx.fillStyle = "#28ff28"; ctx.font = "bold 45px Courier New"; ctx.textAlign = "center"; ctx.fillText(score, gameWidth/2, 80); }
+    if (gamePlaying || isDying) { ctx.fillStyle = "#28ff28"; ctx.font = "bold 45px Courier New"; ctx.textAlign = "center"; ctx.fillText(score, gameWidth/2, 80); }
 
     if(!gamePlaying && !isDead && !isDying){
         ctx.fillStyle = "rgba(40, 255, 40, 0.7)"; ctx.font = "bold 16px Courier New"; ctx.textAlign = "center"; 
@@ -453,10 +467,6 @@ function gameOver(){
     isDead = true; finalScore = score;
     if(score > highScore) { highScore = score; localStorage.setItem("starseedHighScore", highScore); }
     pushScoreToCloud();
-
-    music.pause(); music.currentTime = 0;
-    currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
-    music.src = playlist[currentTrackIndex];
 }
 
 function handleAction(e) {
@@ -472,7 +482,6 @@ function handleAction(e) {
         else { touchX = (e.clientX - rect.left) * (gameWidth / rect.width); touchY = (e.clientY - rect.top) * (gameHeight / rect.height); }
     }
 
-    // Block tapping while the vessel is drifting away
     if (isDying) return;
 
     if (!gamePlaying && !isDead && touchY && touchY < 70 && touchX > gameWidth/2 - 50 && touchX < gameWidth/2 + 50) {
@@ -486,8 +495,9 @@ function handleAction(e) {
             return; 
         }
 
+        // Reset all states including pipe opacity
         justUnlockedBird2 = false; isDead = false; bird.y = 180; bird.speed = 0; pipes.position = [];
-        pipes.dx = 3.5; pipes.gap = 140; score = 0; frames = 0; hueShift = 0; cvs.style.filter = `hue-rotate(0deg)`;
+        pipes.dx = 3.5; pipes.gap = 140; pipes.opacity = 1.0; score = 0; frames = 0; hueShift = 0; cvs.style.filter = `hue-rotate(0deg)`;
         return;
     }
     
