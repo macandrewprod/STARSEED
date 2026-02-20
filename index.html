@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STARSEED - Connect & Share</title>
+    <title>STARSEED - Network</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
             background-color: #000; overflow: hidden;
             display: flex; justify-content: center; align-items: center;
             user-select: none; -webkit-user-select: none; touch-action: none;
+            font-family: 'Courier New', Courier, monospace;
         }
         #game-container {
             position: relative; width: 100vw; height: 100vh;
@@ -24,16 +25,71 @@
             image-rendering: pixelated;
             image-rendering: crisp-edges;
             transition: filter 0.1s linear; 
+            z-index: 1;
         }
+        
+        /* --- UI OVERLAYS --- */
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); z-index: 10;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            color: #28ff28; text-align: center;
+        }
+        .hidden { display: none !important; }
+        
+        input[type="text"] {
+            background: #000; border: 2px solid #28ff28; color: #fff;
+            padding: 12px; font-family: 'Courier New', Courier, monospace; font-size: 18px;
+            text-align: center; width: 200px; margin-bottom: 20px; outline: none;
+            text-transform: uppercase;
+        }
+        
+        .ui-btn {
+            background: #28ff28; color: #000; border: none; padding: 12px 24px;
+            font-family: 'Courier New', Courier, monospace; font-size: 16px; font-weight: bold;
+            cursor: pointer; text-transform: uppercase; margin: 10px;
+        }
+        .ui-btn:active { background: #fff; }
+
+        #lb-btn-container {
+            position: absolute; bottom: 30px; z-index: 5;
+        }
+
+        .lb-list {
+            list-style: none; padding: 0; width: 240px; text-align: left; font-size: 18px; margin-bottom: 30px; color: #fff;
+        }
+        .lb-list li {
+            display: flex; justify-content: space-between; border-bottom: 1px dashed #28ff28; padding: 8px 0;
+        }
+        .lb-list li span:first-child { color: #28ff28; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div id="game-container"></div>
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="login-ui" class="overlay hidden">
+        <h2 style="margin-bottom: 5px;">IDENTIFY VESSEL</h2>
+        <p style="font-size: 12px; color: #aaa; margin-bottom: 20px;">ENTER ALIAS TO JOIN NETWORK</p>
+        <input type="text" id="username-input" maxlength="10" placeholder="ALIAS">
+        <button id="save-user-btn" class="ui-btn">SYNC IDENTITY</button>
+    </div>
+
+    <div id="leaderboard-ui" class="overlay hidden">
+        <h2 style="margin-bottom: 20px;">NETWORK ARCHIVE</h2>
+        <ul id="leaderboard-list" class="lb-list">
+            </ul>
+        <button id="close-lb-btn" class="ui-btn">RETURN</button>
+    </div>
+
+    <div id="lb-btn-container" class="hidden">
+        <button id="open-lb-btn" class="ui-btn" style="background: transparent; border: 2px solid #28ff28; color: #28ff28;">VIEW NETWORK</button>
+    </div>
+</div>
 
 <script>
-const container = document.getElementById('game-container');
-const cvs = document.createElement("canvas");
+const cvs = document.getElementById("gameCanvas");
 const ctx = cvs.getContext("2d");
 
 const gameWidth = 280;
@@ -43,24 +99,31 @@ const dpr = window.devicePixelRatio || 1;
 cvs.width = gameWidth * dpr;
 cvs.height = gameHeight * dpr;
 ctx.scale(dpr, dpr);
-
 ctx.imageSmoothingEnabled = false;
-container.appendChild(cvs);
+
+// --- DOM ELEMENTS ---
+const loginUI = document.getElementById("login-ui");
+const lbUI = document.getElementById("leaderboard-ui");
+const lbBtnContainer = document.getElementById("lb-btn-container");
+const usernameInput = document.getElementById("username-input");
+const saveUserBtn = document.getElementById("save-user-btn");
+const closeLbBtn = document.getElementById("close-lb-btn");
+const openLbBtn = document.getElementById("open-lb-btn");
+const lbList = document.getElementById("leaderboard-list");
 
 // --- ASSETS ---
 const bird1Img = new Image(); bird1Img.src = "bird.png"; 
 const bird2Img = new Image(); bird2Img.src = "bird2.png"; 
 const bgImg = new Image(); bgImg.src = "bg.png"; 
 
-// --- AUDIO & WEB AUDIO API SETUP ---
+// --- AUDIO SETUP ---
 const playlist = ["music.mp3", "music2.mp3", "music3.mp3", "music4.mp3"];
 let currentTrackIndex = 0;
 const music = new Audio();
 music.crossOrigin = "anonymous"; 
 music.src = playlist[currentTrackIndex];
 music.loop = true;
-const sound47 = new Audio();
-sound47.src = "47.mp3";
+const sound47 = new Audio(); sound47.src = "47.mp3";
 
 let audioCtx, analyser, source, dataArray;
 let isAudioInitialized = false;
@@ -71,27 +134,81 @@ function initAudio() {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 256; 
-    
     source = audioCtx.createMediaElementSource(music);
     source.connect(analyser);
     analyser.connect(audioCtx.destination);
-    
     dataArray = new Uint8Array(analyser.frequencyBinCount);
     isAudioInitialized = true;
 }
 
 // --- VARIABLES ---
+let username = localStorage.getItem("starseedUsername") || "";
 let gamePlaying = false;
 let isDead = false;
+let isViewingLeaderboard = false;
 let frames = 0;
 let score = 0;
 let finalScore = 0;
 let highScore = localStorage.getItem("starseedHighScore") || 0;
-
 let bird2Unlocked = localStorage.getItem("bird2Unlocked") === "true";
 let selectedBird = 1; 
 let justUnlockedBird2 = false; 
 let hueShift = 0;
+
+// MOCK DATABASE LOGIC
+function getLeaderboardData() {
+    let mockData = [
+        { name: "YJ", score: 112 },
+        { name: "BLEEZE", score: 89 },
+        { name: "JET", score: 75 },
+        { name: "JAVYDADE", score: 48 }
+    ];
+    // Add local user to the array
+    if (username && highScore > 0) {
+        mockData.push({ name: username, score: parseInt(highScore) });
+    }
+    // Sort highest to lowest
+    return mockData.sort((a, b) => b.score - a.score).slice(0, 5);
+}
+
+// UI EVENT LISTENERS
+saveUserBtn.addEventListener("click", () => {
+    let val = usernameInput.value.trim().toUpperCase();
+    if (val.length > 0) {
+        username = val;
+        localStorage.setItem("starseedUsername", username);
+        loginUI.classList.add("hidden");
+        lbBtnContainer.classList.remove("hidden");
+    }
+});
+
+openLbBtn.addEventListener("click", () => {
+    isViewingLeaderboard = true;
+    lbBtnContainer.classList.add("hidden");
+    lbUI.classList.remove("hidden");
+    
+    // Render list
+    lbList.innerHTML = "";
+    let data = getLeaderboardData();
+    data.forEach((entry, index) => {
+        let li = document.createElement("li");
+        li.innerHTML = `<span>${index + 1}. ${entry.name}</span> <span>${entry.score}</span>`;
+        lbList.appendChild(li);
+    });
+});
+
+closeLbBtn.addEventListener("click", () => {
+    isViewingLeaderboard = false;
+    lbUI.classList.add("hidden");
+    if (!gamePlaying) lbBtnContainer.classList.remove("hidden");
+});
+
+// CHECK LOGIN STATE ON LOAD
+if (!username) {
+    loginUI.classList.remove("hidden");
+} else {
+    lbBtnContainer.classList.remove("hidden");
+}
 
 // --- STARFIELD ---
 const starfield = {
@@ -101,19 +218,10 @@ const starfield = {
         for(let i = 0; i < 75; i++) { 
             let layer = Math.random();
             let size, speed, opacity;
-            
-            if (layer < 0.6) { 
-                size = Math.random() * 0.5 + 0.5; speed = Math.random() * 0.2 + 0.1; opacity = 0.3;
-            } else if (layer < 0.9) { 
-                size = Math.random() * 1.0 + 1.0; speed = Math.random() * 0.5 + 0.5; opacity = 0.6;
-            } else { 
-                size = Math.random() * 1.5 + 1.5; speed = Math.random() * 1.2 + 1.0; opacity = 1.0;
-            }
-
-            this.particles.push({
-                x: Math.random() * gameWidth, y: Math.random() * gameHeight,
-                size: size, speed: speed, baseOpacity: opacity, opacity: opacity
-            });
+            if (layer < 0.6) { size = Math.random() * 0.5 + 0.5; speed = Math.random() * 0.2 + 0.1; opacity = 0.3; } 
+            else if (layer < 0.9) { size = Math.random() * 1.0 + 1.0; speed = Math.random() * 0.5 + 0.5; opacity = 0.6; } 
+            else { size = Math.random() * 1.5 + 1.5; speed = Math.random() * 1.2 + 1.0; opacity = 1.0; }
+            this.particles.push({ x: Math.random() * gameWidth, y: Math.random() * gameHeight, size: size, speed: speed, baseOpacity: opacity, opacity: opacity });
         }
     },
     draw: function() {
@@ -140,15 +248,9 @@ const bird = {
     draw: function() {
         ctx.save();
         let currentImg = (selectedBird === 1) ? bird1Img : bird2Img;
-        
         if (bassPulse > 130 && gamePlaying) {
-            let glowIntensity = ((bassPulse - 130) / 125) * 25 + 5; 
-            ctx.shadowColor = "#28ff28";
-            ctx.shadowBlur = glowIntensity;
-        } else {
-            ctx.shadowBlur = 0;
-        }
-
+            ctx.shadowColor = "#28ff28"; ctx.shadowBlur = ((bassPulse - 130) / 125) * 25 + 5; 
+        } else { ctx.shadowBlur = 0; }
         if (currentImg.complete) { ctx.drawImage(currentImg, Math.floor(this.x), Math.floor(this.y), this.w, this.h); }
         ctx.restore();
     },
@@ -167,56 +269,31 @@ const pipes = {
     position: [], w: 50, h: 400, gap: 140, dx: 3.5, 
     draw: function() {
         ctx.save();
-        ctx.shadowColor = "#28ff28"; 
-        ctx.shadowBlur = 15; 
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = "#28ff28";
-
+        ctx.shadowColor = "#28ff28"; ctx.shadowBlur = 15; ctx.lineWidth = 3; ctx.strokeStyle = "#28ff28";
         for(let p of this.position){
-            let topY = Math.floor(p.y);
-            let bottomY = Math.floor(p.y + this.h + p.currentGap);
-            let pipeX = Math.floor(p.x);
-            ctx.strokeRect(pipeX, topY, this.w, this.h);
-            ctx.strokeRect(pipeX, bottomY, this.w, this.h);
+            let topY = Math.floor(p.y), bottomY = Math.floor(p.y + this.h + p.currentGap), pipeX = Math.floor(p.x);
+            ctx.strokeRect(pipeX, topY, this.w, this.h); ctx.strokeRect(pipeX, bottomY, this.w, this.h);
         }
         ctx.restore();
     },
     update: function() {
         if(!gamePlaying) return;
-        
         if(frames % 90 == 0){
             let minY, maxY;
-            if (score < 60) { minY = -240; maxY = -200; } 
-            else { minY = -280; maxY = -160; }
-            let randomY = Math.floor(Math.random() * (maxY - minY + 1) + minY);
-            this.position.push({ x: gameWidth, y: randomY, currentGap: this.gap, scored: false });
+            if (score < 60) { minY = -240; maxY = -200; } else { minY = -280; maxY = -160; }
+            this.position.push({ x: gameWidth, y: Math.floor(Math.random() * (maxY - minY + 1) + minY), currentGap: this.gap, scored: false });
         }
-        
         for(let i = 0; i < this.position.length; i++){
             let p = this.position[i];
             p.x -= this.dx;
-            
-            if( bird.x + 12 < p.x + this.w && bird.x + bird.w - 12 > p.x && 
-               (bird.y + 12 < p.y + this.h || bird.y + bird.h - 12 > p.y + this.h + p.currentGap)){
+            if( bird.x + 12 < p.x + this.w && bird.x + bird.w - 12 > p.x && (bird.y + 12 < p.y + this.h || bird.y + bird.h - 12 > p.y + this.h + p.currentGap)){
                 gameOver(); return; 
             }
-            
             if(p.x + this.w <= 0){ this.position.shift(); i--; } 
             else if (p.x + this.w < bird.x && !p.scored) {
-                p.scored = true;
-                score++;
-                if (score === 47) {
-                    sound47.play().catch(() => {});
-                    if (!bird2Unlocked) {
-                        bird2Unlocked = true;
-                        localStorage.setItem("bird2Unlocked", "true");
-                        justUnlockedBird2 = true; 
-                    }
-                }
-                if (score % 10 === 0) { 
-                    if (score <= 40) { this.dx += 0.8; }
-                    if (score >= 60 && this.gap > 115) { this.gap -= 5; }
-                }
+                p.scored = true; score++;
+                if (score === 47) { sound47.play().catch(() => {}); if (!bird2Unlocked) { bird2Unlocked = true; localStorage.setItem("bird2Unlocked", "true"); justUnlockedBird2 = true; } }
+                if (score % 10 === 0) { if (score <= 40) { this.dx += 0.8; } if (score >= 60 && this.gap > 115) { this.gap -= 5; } }
             }
         }
     }
@@ -225,12 +302,9 @@ const pipes = {
 function updateAudioData() {
     if (isAudioInitialized && !music.paused) {
         analyser.getByteFrequencyData(dataArray);
-        let sum = 0;
-        for(let i = 0; i < 8; i++) { sum += dataArray[i]; }
+        let sum = 0; for(let i = 0; i < 8; i++) { sum += dataArray[i]; }
         bassPulse = sum / 8; 
-    } else {
-        bassPulse = 0;
-    }
+    } else { bassPulse = 0; }
 }
 
 // --- ENGINE ---
@@ -239,30 +313,23 @@ function draw(){
     updateAudioData(); 
 
     if (score >= 47 && hueShift < 160) {
-        hueShift += 1.5; 
-        cvs.style.filter = `hue-rotate(${Math.floor(hueShift)}deg)`;
+        hueShift += 1.5; cvs.style.filter = `hue-rotate(${Math.floor(hueShift)}deg)`;
     }
 
-    // DRAW BACKGROUND & REACTIVE LOGO
     if (bgImg.complete) {
         let scale = Math.max(gameWidth / bgImg.width, gameHeight / bgImg.height);
         let x = (gameWidth / 2) - (bgImg.width / 2) * scale;
         let y = (gameHeight) - (bgImg.height * scale); 
-        
         ctx.save();
-        // The logo pulse logic
-        if (bassPulse > 130) {
-            let glowIntensity = ((bassPulse - 130) / 125) * 50 + 10; 
-            ctx.shadowColor = "#28ff28";
-            ctx.shadowBlur = glowIntensity;
-        }
+        if (bassPulse > 130) { ctx.shadowColor = "#28ff28"; ctx.shadowBlur = ((bassPulse - 130) / 125) * 50 + 10; }
         ctx.drawImage(bgImg, Math.floor(x), Math.floor(y), Math.floor(bgImg.width * scale), Math.floor(bgImg.height * scale));
         ctx.restore();
-    } else {
-        ctx.fillStyle = "#000"; ctx.fillRect(0, 0, gameWidth, gameHeight);
-    }
+    } else { ctx.fillStyle = "#000"; ctx.fillRect(0, 0, gameWidth, gameHeight); }
     
     starfield.draw(); pipes.draw(); bird.draw();
+
+    // HIDE CANVAS HUD ELEMENTS IF UI IS OPEN
+    if (!username || isViewingLeaderboard) return;
 
     if (gamePlaying) {
         ctx.fillStyle = "#28ff28"; ctx.font = "bold 45px Courier New";
@@ -279,8 +346,7 @@ function draw(){
         if (bird1Img.complete) ctx.drawImage(bird1Img, gameWidth/2 - 50, 90, 40, 45);
         
         if (bird2Unlocked) {
-            ctx.strokeStyle = (selectedBird === 2) ? "#28ff28" : "#444";
-            ctx.strokeRect(gameWidth/2 + 5, 80, 50, 60);
+            ctx.strokeStyle = (selectedBird === 2) ? "#28ff28" : "#444"; ctx.strokeRect(gameWidth/2 + 5, 80, 50, 60);
             if (bird2Img.complete) ctx.drawImage(bird2Img, gameWidth/2 + 10, 90, 40, 45);
         } else {
             ctx.fillStyle = "#333"; ctx.fillRect(gameWidth/2 + 5, 80, 50, 60);
@@ -289,42 +355,28 @@ function draw(){
 
         ctx.fillStyle = "rgba(40, 255, 40, 0.9)"; ctx.font = "bold 24px Courier New";
         ctx.fillText("INITIATE SEQUENCE", gameWidth/2, gameHeight/2 + 50);
+        ctx.fillStyle = "#fff"; ctx.font = "bold 12px Courier New";
+        ctx.fillText("USER: " + username, gameWidth/2, gameHeight/2 + 80);
     }
 
     if(isDead){
         ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; ctx.fillRect(0, 0, gameWidth, gameHeight);
-        
-        ctx.fillStyle = "#28ff28"; ctx.font = "bold 24px Courier New";
-        ctx.textAlign = "center"; ctx.fillText("SEQUENCE TERMINATED", gameWidth/2, gameHeight/2 - 60);
-        
-        ctx.fillStyle = "#FFF"; ctx.font = "bold 50px Courier New";
-        ctx.fillText("SCORE: " + finalScore, gameWidth/2, gameHeight/2);
+        ctx.fillStyle = "#28ff28"; ctx.font = "bold 24px Courier New"; ctx.textAlign = "center"; ctx.fillText("SEQUENCE TERMINATED", gameWidth/2, gameHeight/2 - 80);
+        ctx.fillStyle = "#FFF"; ctx.font = "bold 50px Courier New"; ctx.fillText("SCORE: " + finalScore, gameWidth/2, gameHeight/2 - 20);
         
         if (justUnlockedBird2) {
-            ctx.fillStyle = "rgba(40, 255, 40, 0.9)";
-            ctx.font = "bold 16px Courier New";
-            ctx.fillText("NEW VESSEL UNLOCKED", gameWidth/2, gameHeight/2 + 40);
-            if (bird2Img.complete) ctx.drawImage(bird2Img, gameWidth/2 - 20, gameHeight/2 + 55, 40, 50);
-        } 
-        else if (finalScore >= highScore && finalScore > 0) {
-            ctx.fillStyle = "#28ff28";
-            ctx.font = "bold 14px Courier New";
-            ctx.fillText("NEW HIGH SCORE DETECTED", gameWidth/2, gameHeight/2 + 40);
+            ctx.fillStyle = "rgba(40, 255, 40, 0.9)"; ctx.font = "bold 16px Courier New"; ctx.fillText("NEW VESSEL UNLOCKED", gameWidth/2, gameHeight/2 + 20);
+            if (bird2Img.complete) ctx.drawImage(bird2Img, gameWidth/2 - 20, gameHeight/2 + 35, 40, 50);
+        } else if (finalScore >= highScore && finalScore > 0) {
+            ctx.fillStyle = "#28ff28"; ctx.font = "bold 14px Courier New"; ctx.fillText("NEW HIGH SCORE DETECTED", gameWidth/2, gameHeight/2 + 20);
         }
 
-        ctx.fillStyle = "rgba(40, 255, 40, 0.8)"; ctx.font = "bold 16px Courier New";
-        ctx.fillText("TAP TO RE-INITIATE", gameWidth/2, gameHeight/2 + 115);
+        ctx.fillStyle = "rgba(40, 255, 40, 0.8)"; ctx.font = "bold 16px Courier New"; ctx.fillText("TAP TO RE-INITIATE", gameWidth/2, gameHeight/2 + 105);
 
-        // --- NEW SHARE SCORE BUTTON ---
-        ctx.fillStyle = "rgba(40, 255, 40, 0.1)";
-        ctx.fillRect(gameWidth/2 - 70, gameHeight/2 + 140, 140, 35);
-        ctx.strokeStyle = "#28ff28";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(gameWidth/2 - 70, gameHeight/2 + 140, 140, 35);
-        
-        ctx.fillStyle = "#28ff28";
-        ctx.font = "bold 16px Courier New";
-        ctx.fillText("SHARE SCORE", gameWidth/2, gameHeight/2 + 162);
+        // Canvas Share Button Box
+        ctx.fillStyle = "rgba(40, 255, 40, 0.1)"; ctx.fillRect(gameWidth/2 - 70, gameHeight/2 + 130, 140, 35);
+        ctx.strokeStyle = "#28ff28"; ctx.lineWidth = 2; ctx.strokeRect(gameWidth/2 - 70, gameHeight/2 + 130, 140, 35);
+        ctx.fillStyle = "#28ff28"; ctx.font = "bold 16px Courier New"; ctx.fillText("SHARE SCORE", gameWidth/2, gameHeight/2 + 152);
     }
 }
 
@@ -332,6 +384,7 @@ function loop(){ starfield.update(); bird.update(); pipes.update(); draw(); fram
 
 function gameOver(){
     gamePlaying = false; isDead = true; finalScore = score;
+    lbBtnContainer.classList.remove("hidden"); // Show LB button on death
     if(score > highScore) { highScore = score; localStorage.setItem("starseedHighScore", highScore); }
     music.pause(); music.currentTime = 0;
     currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
@@ -339,8 +392,10 @@ function gameOver(){
 }
 
 function handleAction(e) {
-    if (e && e.type === "touchstart") e.preventDefault();
+    // Prevent flap if interacting with HTML UI
+    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || !username || isViewingLeaderboard) return;
     
+    if (e && e.type === "touchstart") e.preventDefault();
     if (!isAudioInitialized) { initAudio(); }
     if (audioCtx && audioCtx.state === 'suspended') { audioCtx.resume(); }
 
@@ -362,29 +417,20 @@ function handleAction(e) {
     }
     
     if(isDead) {
-        // --- SHARE BUTTON LOGIC ---
-        if (touchX && touchY && touchX > gameWidth/2 - 70 && touchX < gameWidth/2 + 70 && touchY > gameHeight/2 + 140 && touchY < gameHeight/2 + 175) {
+        if (touchX && touchY && touchX > gameWidth/2 - 70 && touchX < gameWidth/2 + 70 && touchY > gameHeight/2 + 130 && touchY < gameHeight/2 + 165) {
             if (navigator.share) {
-                navigator.share({
-                    title: 'STARSEED SEQUENCE',
-                    text: `I survived ${finalScore} cycles in the STARSEED sequence. Can you beat my record?`,
-                    url: window.location.href
-                }).catch(console.error);
-            } else {
-                alert(`You scored ${finalScore}! Copy this page link and dare the crew.`);
-            }
-            return; // Stops the game from restarting instantly
+                navigator.share({ title: 'STARSEED SEQUENCE', text: `[${username}] survived ${finalScore} cycles. Beat my record.`, url: window.location.href }).catch(console.error);
+            } else { alert(`You scored ${finalScore}! Copy this page link and dare the crew.`); }
+            return; 
         }
 
-        justUnlockedBird2 = false; 
-        isDead = false; bird.y = 220; bird.speed = 0; pipes.position = [];
-        pipes.dx = 3.5; pipes.gap = 140; score = 0; frames = 0; 
-        hueShift = 0; 
-        cvs.style.filter = `hue-rotate(0deg)`;
+        justUnlockedBird2 = false; isDead = false; bird.y = 220; bird.speed = 0; pipes.position = [];
+        pipes.dx = 3.5; pipes.gap = 140; score = 0; frames = 0; hueShift = 0; cvs.style.filter = `hue-rotate(0deg)`;
+        lbBtnContainer.classList.add("hidden"); // Hide LB button when playing
         return;
     }
     
-    if(!gamePlaying){ gamePlaying = true; music.play().catch(() => {}); }
+    if(!gamePlaying){ gamePlaying = true; lbBtnContainer.classList.add("hidden"); music.play().catch(() => {}); }
     bird.flap();
 }
 
