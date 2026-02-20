@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STARSEED - High Fidelity</title>
+    <title>STARSEED - Zoomed In</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -35,8 +35,9 @@ const container = document.getElementById('game-container');
 const cvs = document.createElement("canvas");
 const ctx = cvs.getContext("2d");
 
-const gameWidth = 360;
-const gameHeight = 640;
+// --- NEW ZOOMED-IN RESOLUTION ---
+const gameWidth = 280;
+const gameHeight = 500;
 const dpr = window.devicePixelRatio || 1;
 
 cvs.width = gameWidth * dpr;
@@ -71,15 +72,13 @@ let highScore = localStorage.getItem("starseedHighScore") || 0;
 
 let bird2Unlocked = localStorage.getItem("bird2Unlocked") === "true";
 let selectedBird = 1; 
-
-// FLAG: Track if the bird was unlocked during the current run
 let justUnlockedBird2 = false; 
 
 // --- STARFIELD ---
 const starfield = {
     particles: [],
     init: function() {
-        for(let i = 0; i < 80; i++) { 
+        for(let i = 0; i < 60; i++) { 
             this.particles.push({
                 x: Math.random() * gameWidth,
                 y: Math.random() * gameHeight,
@@ -109,9 +108,9 @@ const starfield = {
 };
 starfield.init();
 
-// --- VESSEL ---
+// --- VESSEL (LARGER & RE-TUNED) ---
 const bird = {
-    x: 65, y: 280, w: 45, h: 55, speed: 0, gravity: 0.28, jump: 5.3,    
+    x: 50, y: 220, w: 55, h: 65, speed: 0, gravity: 0.32, jump: 5.8,    
     draw: function() {
         let currentImg = (selectedBird === 1) ? bird1Img : bird2Img;
         if (currentImg.complete) { 
@@ -119,7 +118,7 @@ const bird = {
         }
     },
     update: function() {
-        if (!gamePlaying && !isDead) { this.y = 280 + Math.cos(frames/15) * 10; return; }
+        if (!gamePlaying && !isDead) { this.y = 220 + Math.cos(frames/15) * 10; return; }
         if (isDead) return;
         this.speed += this.gravity;
         this.y += this.speed;
@@ -128,9 +127,9 @@ const bird = {
     flap: function() { this.speed = -this.jump; }
 };
 
-// --- PILLARS ---
+// --- PILLARS (WIDER & CLOSER) ---
 const pipes = {
-    position: [], w: 55, h: 450, gap: 165, dx: 3.2, 
+    position: [], w: 65, h: 400, gap: 140, dx: 3.5, 
     draw: function() {
         ctx.save();
         ctx.shadowColor = "#FFFFFF"; ctx.shadowBlur = 10;
@@ -150,8 +149,8 @@ const pipes = {
     },
     update: function() {
         if(!gamePlaying) return;
-        if(frames % 105 == 0){
-            this.position.push({ x: gameWidth, y: Math.floor(Math.random() * (-160 - -340 + 1) + -340), currentGap: this.gap, scored: false });
+        if(frames % 90 == 0){
+            this.position.push({ x: gameWidth, y: Math.floor(Math.random() * (-120 - -280 + 1) + -280), currentGap: this.gap, scored: false });
         }
         for(let i = 0; i < this.position.length; i++){
             let p = this.position[i];
@@ -172,7 +171,7 @@ const pipes = {
                         justUnlockedBird2 = true; 
                     }
                 }
-                if (score % 10 === 0) { this.dx += 0.7; if (this.gap > 135) this.gap -= 5; }
+                if (score % 10 === 0) { this.dx += 0.8; if (this.gap > 115) this.gap -= 5; }
             }
         }
     }
@@ -194,8 +193,8 @@ function draw(){
     starfield.draw(); pipes.draw(); bird.draw();
 
     if (gamePlaying) {
-        ctx.fillStyle = "#28ff28"; ctx.font = "bold 38px Courier New";
-        ctx.textAlign = "center"; ctx.fillText(score, gameWidth/2, 70);
+        ctx.fillStyle = "#28ff28"; ctx.font = "bold 45px Courier New";
+        ctx.textAlign = "center"; ctx.fillText(score, gameWidth/2, 80);
     }
 
     if(!gamePlaying && !isDead){
@@ -204,19 +203,19 @@ function draw(){
         ctx.fillStyle = "#FFF"; ctx.font = "bold 12px Courier New"; ctx.fillText("SELECT VESSEL", gameWidth/2, 65);
         
         ctx.strokeStyle = (selectedBird === 1) ? "#28ff28" : "#444";
-        ctx.strokeRect(gameWidth/2 - 50, 80, 40, 50);
-        if (bird1Img.complete) ctx.drawImage(bird1Img, gameWidth/2 - 45, 90, 30, 35);
+        ctx.strokeRect(gameWidth/2 - 55, 80, 50, 60);
+        if (bird1Img.complete) ctx.drawImage(bird1Img, gameWidth/2 - 50, 90, 40, 45);
         
         if (bird2Unlocked) {
             ctx.strokeStyle = (selectedBird === 2) ? "#28ff28" : "#444";
-            ctx.strokeRect(gameWidth/2 + 10, 80, 40, 50);
-            if (bird2Img.complete) ctx.drawImage(bird2Img, gameWidth/2 + 15, 90, 30, 35);
+            ctx.strokeRect(gameWidth/2 + 5, 80, 50, 60);
+            if (bird2Img.complete) ctx.drawImage(bird2Img, gameWidth/2 + 10, 90, 40, 45);
         } else {
-            ctx.fillStyle = "#333"; ctx.fillRect(gameWidth/2 + 10, 80, 40, 50);
-            ctx.fillStyle = "#666"; ctx.font = "bold 10px Courier New"; ctx.fillText("LOCKED", gameWidth/2 + 30, 110);
+            ctx.fillStyle = "#333"; ctx.fillRect(gameWidth/2 + 5, 80, 50, 60);
+            ctx.fillStyle = "#666"; ctx.font = "bold 10px Courier New"; ctx.fillText("LOCKED", gameWidth/2 + 30, 115);
         }
 
-        ctx.fillStyle = "rgba(40, 255, 40, 0.9)"; ctx.font = "bold 22px Courier New";
+        ctx.fillStyle = "rgba(40, 255, 40, 0.9)"; ctx.font = "bold 24px Courier New";
         ctx.fillText("INITIATE SEQUENCE", gameWidth/2, gameHeight/2 + 50);
     }
 
@@ -226,25 +225,23 @@ function draw(){
         ctx.fillStyle = "#28ff28"; ctx.font = "bold 24px Courier New";
         ctx.textAlign = "center"; ctx.fillText("SEQUENCE TERMINATED", gameWidth/2, gameHeight/2 - 60);
         
-        ctx.fillStyle = "#FFF"; ctx.font = "bold 45px Courier New";
-        ctx.fillText("SCORE: " + finalScore, gameWidth/2, gameHeight/2 - 10);
+        ctx.fillStyle = "#FFF"; ctx.font = "bold 50px Courier New";
+        ctx.fillText("SCORE: " + finalScore, gameWidth/2, gameHeight/2);
         
-        // DISPLAY UNLOCK NOTIFICATION ONLY AFTER YOU DIE
         if (justUnlockedBird2) {
             ctx.fillStyle = "rgba(40, 255, 40, 0.9)";
             ctx.font = "bold 16px Courier New";
-            ctx.fillText("NEW VESSEL UNLOCKED", gameWidth/2, gameHeight/2 + 30);
-            if (bird2Img.complete) ctx.drawImage(bird2Img, gameWidth/2 - 15, gameHeight/2 + 40, 30, 40);
+            ctx.fillText("NEW VESSEL UNLOCKED", gameWidth/2, gameHeight/2 + 40);
+            if (bird2Img.complete) ctx.drawImage(bird2Img, gameWidth/2 - 20, gameHeight/2 + 55, 40, 50);
         } 
-        // OR DISPLAY HIGH SCORE IF NO UNLOCK HAPPENED
         else if (finalScore >= highScore && finalScore > 0) {
             ctx.fillStyle = "#28ff28";
             ctx.font = "bold 14px Courier New";
-            ctx.fillText("NEW HIGH SCORE DETECTED", gameWidth/2, gameHeight/2 + 30);
+            ctx.fillText("NEW HIGH SCORE DETECTED", gameWidth/2, gameHeight/2 + 40);
         }
 
-        ctx.fillStyle = "rgba(40, 255, 40, 0.8)"; ctx.font = "bold 16px Courier New";
-        ctx.fillText("TAP TO RE-INITIATE", gameWidth/2, gameHeight/2 + 100);
+        ctx.fillStyle = "rgba(40, 255, 40, 0.8)"; ctx.font = "bold 18px Courier New";
+        ctx.fillText("TAP TO RE-INITIATE", gameWidth/2, gameHeight/2 + 120);
     }
 }
 
@@ -270,13 +267,14 @@ function handleAction(e) {
             touchX = (e.clientX - rect.left) * (gameWidth / rect.width);
             touchY = (e.clientY - rect.top) * (gameHeight / rect.height);
         }
-        if (touchX > gameWidth/2 - 50 && touchX < gameWidth/2 - 10 && touchY > 80 && touchY < 130) { selectedBird = 1; return; }
-        if (bird2Unlocked && touchX > gameWidth/2 + 10 && touchX < gameWidth/2 + 50 && touchY > 80 && touchY < 130) { selectedBird = 2; return; }
+        // Updated touch zones for larger selector
+        if (touchX > gameWidth/2 - 55 && touchX < gameWidth/2 - 5 && touchY > 80 && touchY < 140) { selectedBird = 1; return; }
+        if (bird2Unlocked && touchX > gameWidth/2 + 5 && touchX < gameWidth/2 + 55 && touchY > 80 && touchY < 140) { selectedBird = 2; return; }
     }
     if(isDead) {
         justUnlockedBird2 = false; 
-        isDead = false; bird.y = 280; bird.speed = 0; pipes.position = [];
-        pipes.dx = 3.2; pipes.gap = 165; score = 0; frames = 0; return;
+        isDead = false; bird.y = 220; bird.speed = 0; pipes.position = [];
+        pipes.dx = 3.5; pipes.gap = 140; score = 0; frames = 0; return;
     }
     if(!gamePlaying){ gamePlaying = true; music.play().catch(() => {}); }
     bird.flap();
