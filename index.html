@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STARSEED - Neon Pillars</title>
+    <title>STARSEED - The 47 Threshold</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -35,7 +35,6 @@ const container = document.getElementById('game-container');
 const cvs = document.createElement("canvas");
 const ctx = cvs.getContext("2d");
 
-// --- ZOOMED-IN RESOLUTION ---
 const gameWidth = 280;
 const gameHeight = 500;
 const dpr = window.devicePixelRatio || 1;
@@ -50,7 +49,6 @@ container.appendChild(cvs);
 // --- ASSETS ---
 const bird1Img = new Image(); bird1Img.src = "bird.png"; 
 const bird2Img = new Image(); bird2Img.src = "bird2.png"; 
-// note: pillar.png is no longer used for drawing
 const bgImg = new Image(); bgImg.src = "bg.png"; 
 
 // AUDIO
@@ -132,7 +130,6 @@ const pipes = {
     position: [], w: 65, h: 400, gap: 140, dx: 3.5, 
     draw: function() {
         ctx.save();
-        // Set Glow and Stroke style to Starseed Green
         ctx.shadowColor = "#28ff28"; 
         ctx.shadowBlur = 15;
         ctx.strokeStyle = "#28ff28";
@@ -143,9 +140,7 @@ const pipes = {
             let bottomY = Math.floor(p.y + this.h + p.currentGap);
             let pipeX = Math.floor(p.x);
 
-            // Draw Top Pillar Outline
             ctx.strokeRect(pipeX, topY, this.w, this.h);
-            // Draw Bottom Pillar Outline
             ctx.strokeRect(pipeX, bottomY, this.w, this.h);
         }
         ctx.restore();
@@ -158,14 +153,17 @@ const pipes = {
         for(let i = 0; i < this.position.length; i++){
             let p = this.position[i];
             p.x -= this.dx;
+            
             if( bird.x + 12 < p.x + this.w && bird.x + bird.w - 12 > p.x && 
                (bird.y + 12 < p.y + this.h || bird.y + bird.h - 12 > p.y + this.h + p.currentGap)){
                 gameOver(); return; 
             }
+            
             if(p.x + this.w <= 0){ this.position.shift(); i--; } 
             else if (p.x + this.w < bird.x && !p.scored) {
                 p.scored = true;
                 score++;
+                
                 if (score === 47) {
                     sound47.play().catch(() => {});
                     if (!bird2Unlocked) {
@@ -174,7 +172,16 @@ const pipes = {
                         justUnlockedBird2 = true; 
                     }
                 }
-                if (score % 10 === 0) { this.dx += 0.8; if (this.gap > 115) this.gap -= 5; }
+                
+                // SPEED & GAP SCALING LOGIC
+                if (score % 10 === 0) { 
+                    this.dx += 0.8; // Speed still increases
+                    
+                    // Gap only shrinks if score is 47 or higher
+                    if (score >= 47 && this.gap > 115) {
+                        this.gap -= 5; 
+                    }
+                }
             }
         }
     }
@@ -276,6 +283,7 @@ function handleAction(e) {
     if(isDead) {
         justUnlockedBird2 = false; 
         isDead = false; bird.y = 220; bird.speed = 0; pipes.position = [];
+        // Ensure gap resets to 140 for the next run
         pipes.dx = 3.5; pipes.gap = 140; score = 0; frames = 0; return;
     }
     if(!gamePlaying){ gamePlaying = true; music.play().catch(() => {}); }
