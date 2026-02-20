@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STARSEED - Vessel Pulse</title>
+    <title>STARSEED - Dimensional Shift</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -92,6 +92,9 @@ let bird2Unlocked = localStorage.getItem("bird2Unlocked") === "true";
 let selectedBird = 1; 
 let justUnlockedBird2 = false; 
 
+// THE COLOR SHIFT VARIABLE
+let hueShift = 0;
+
 // --- STARFIELD (PARALLAX 3D LAYERS) ---
 const starfield = {
     particles: [],
@@ -101,20 +104,15 @@ const starfield = {
             let layer = Math.random();
             let size, speed, opacity;
             
-            // Background Layer (Small, slow, dim)
             if (layer < 0.6) { 
                 size = Math.random() * 0.5 + 0.5;
                 speed = Math.random() * 0.2 + 0.1;
                 opacity = 0.3;
-            } 
-            // Midground Layer (Medium size, normal speed)
-            else if (layer < 0.9) { 
+            } else if (layer < 0.9) { 
                 size = Math.random() * 1.0 + 1.0;
                 speed = Math.random() * 0.5 + 0.5;
                 opacity = 0.6;
-            } 
-            // Foreground Layer (Large, fast, bright)
-            else { 
+            } else { 
                 size = Math.random() * 1.5 + 1.5;
                 speed = Math.random() * 1.2 + 1.0;
                 opacity = 1.0;
@@ -132,11 +130,9 @@ const starfield = {
     },
     draw: function() {
         for(let p of this.particles) {
-            // Twinkle effect
             p.opacity = p.baseOpacity + (Math.random() - 0.5) * 0.2;
             if(p.opacity < 0.1) p.opacity = 0.1;
             
-            // Random green stars to fit the color palette
             ctx.fillStyle = (Math.random() > 0.8) ? `rgba(40, 255, 40, ${p.opacity})` : `rgba(255, 255, 255, ${p.opacity})`;
             ctx.fillRect(Math.floor(p.x), Math.floor(p.y), p.size, p.size);
         }
@@ -144,7 +140,6 @@ const starfield = {
     update: function() {
         let globalSpeed = (gamePlaying || isDead) ? 2.5 : 0.3; 
         for(let p of this.particles) {
-            // The individual p.speed causes the 3D parallax scrolling
             p.x -= (p.speed * globalSpeed);
             if(p.x + p.size < 0) { 
                 p.x = gameWidth; 
@@ -162,9 +157,7 @@ const bird = {
         ctx.save();
         let currentImg = (selectedBird === 1) ? bird1Img : bird2Img;
         
-        // --- THE BEAT PULSE GLOW ---
         if (bassPulse > 130 && gamePlaying) {
-            // The harder the bass, the brighter and larger the neon glow
             let glowIntensity = ((bassPulse - 130) / 125) * 25 + 5; 
             ctx.shadowColor = "#28ff28";
             ctx.shadowBlur = glowIntensity;
@@ -187,12 +180,11 @@ const bird = {
     flap: function() { this.speed = -this.jump; }
 };
 
-// --- PILLARS (STATIC NEON) ---
+// --- PILLARS ---
 const pipes = {
     position: [], w: 50, h: 400, gap: 140, dx: 3.5, 
     draw: function() {
         ctx.save();
-        // Pillars returned to a steady, constant glow
         ctx.shadowColor = "#28ff28"; 
         ctx.shadowBlur = 15; 
         ctx.lineWidth = 3;
@@ -268,6 +260,18 @@ function draw(){
     ctx.imageSmoothingEnabled = false;
     updateAudioData(); 
 
+    // --- DIMENSIONAL SHIFT LOGIC ---
+    if (score >= 47 && hueShift < 160) {
+        // Slowly shifts the color spectrum over time to create a smooth transition
+        hueShift += 1.5; 
+    }
+
+    ctx.save();
+    // Apply the hue rotation to the entire canvas (Targeting purple)
+    if (hueShift > 0) {
+        ctx.filter = `hue-rotate(${Math.floor(hueShift)}deg)`;
+    }
+
     if (bgImg.complete) {
         let scale = Math.max(gameWidth / bgImg.width, gameHeight / bgImg.height);
         let x = (gameWidth / 2) - (bgImg.width / 2) * scale;
@@ -330,6 +334,8 @@ function draw(){
         ctx.fillStyle = "rgba(40, 255, 40, 0.8)"; ctx.font = "bold 18px Courier New";
         ctx.fillText("TAP TO RE-INITIATE", gameWidth/2, gameHeight/2 + 120);
     }
+
+    ctx.restore(); // Resets the hue filter for the next drawing cycle
 }
 
 function loop(){ starfield.update(); bird.update(); pipes.update(); draw(); frames++; requestAnimationFrame(loop); }
@@ -364,7 +370,9 @@ function handleAction(e) {
     if(isDead) {
         justUnlockedBird2 = false; 
         isDead = false; bird.y = 220; bird.speed = 0; pipes.position = [];
-        pipes.dx = 3.5; pipes.gap = 140; score = 0; frames = 0; return;
+        pipes.dx = 3.5; pipes.gap = 140; score = 0; frames = 0; 
+        hueShift = 0; // RESETS THE DIMENSION BACK TO GREEN
+        return;
     }
     if(!gamePlaying){ gamePlaying = true; music.play().catch(() => {}); }
     bird.flap();
