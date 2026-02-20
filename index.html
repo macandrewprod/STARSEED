@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STARSEED - Dimensional Shift</title>
+    <title>STARSEED - Hardware Shift</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -23,6 +23,8 @@
             image-rendering: -moz-pixelated;
             image-rendering: pixelated;
             image-rendering: crisp-edges;
+            /* Added a CSS transition for an ultra-smooth shift */
+            transition: filter 0.1s linear; 
         }
     </style>
 </head>
@@ -61,7 +63,6 @@ music.loop = true;
 const sound47 = new Audio();
 sound47.src = "47.mp3";
 
-// Reactive Audio Variables
 let audioCtx, analyser, source, dataArray;
 let isAudioInitialized = false;
 let bassPulse = 0; 
@@ -95,7 +96,7 @@ let justUnlockedBird2 = false;
 // THE COLOR SHIFT VARIABLE
 let hueShift = 0;
 
-// --- STARFIELD (PARALLAX 3D LAYERS) ---
+// --- STARFIELD ---
 const starfield = {
     particles: [],
     init: function() {
@@ -105,26 +106,16 @@ const starfield = {
             let size, speed, opacity;
             
             if (layer < 0.6) { 
-                size = Math.random() * 0.5 + 0.5;
-                speed = Math.random() * 0.2 + 0.1;
-                opacity = 0.3;
+                size = Math.random() * 0.5 + 0.5; speed = Math.random() * 0.2 + 0.1; opacity = 0.3;
             } else if (layer < 0.9) { 
-                size = Math.random() * 1.0 + 1.0;
-                speed = Math.random() * 0.5 + 0.5;
-                opacity = 0.6;
+                size = Math.random() * 1.0 + 1.0; speed = Math.random() * 0.5 + 0.5; opacity = 0.6;
             } else { 
-                size = Math.random() * 1.5 + 1.5;
-                speed = Math.random() * 1.2 + 1.0;
-                opacity = 1.0;
+                size = Math.random() * 1.5 + 1.5; speed = Math.random() * 1.2 + 1.0; opacity = 1.0;
             }
 
             this.particles.push({
-                x: Math.random() * gameWidth,
-                y: Math.random() * gameHeight,
-                size: size,
-                speed: speed,
-                baseOpacity: opacity,
-                opacity: opacity
+                x: Math.random() * gameWidth, y: Math.random() * gameHeight,
+                size: size, speed: speed, baseOpacity: opacity, opacity: opacity
             });
         }
     },
@@ -132,7 +123,6 @@ const starfield = {
         for(let p of this.particles) {
             p.opacity = p.baseOpacity + (Math.random() - 0.5) * 0.2;
             if(p.opacity < 0.1) p.opacity = 0.1;
-            
             ctx.fillStyle = (Math.random() > 0.8) ? `rgba(40, 255, 40, ${p.opacity})` : `rgba(255, 255, 255, ${p.opacity})`;
             ctx.fillRect(Math.floor(p.x), Math.floor(p.y), p.size, p.size);
         }
@@ -141,16 +131,13 @@ const starfield = {
         let globalSpeed = (gamePlaying || isDead) ? 2.5 : 0.3; 
         for(let p of this.particles) {
             p.x -= (p.speed * globalSpeed);
-            if(p.x + p.size < 0) { 
-                p.x = gameWidth; 
-                p.y = Math.random() * gameHeight; 
-            }
+            if(p.x + p.size < 0) { p.x = gameWidth; p.y = Math.random() * gameHeight; }
         }
     }
 };
 starfield.init();
 
-// --- VESSEL (AUDIO REACTIVE) ---
+// --- VESSEL ---
 const bird = {
     x: 50, y: 220, w: 55, h: 65, speed: 0, gravity: 0.32, jump: 5.8,    
     draw: function() {
@@ -165,9 +152,7 @@ const bird = {
             ctx.shadowBlur = 0;
         }
 
-        if (currentImg.complete) { 
-            ctx.drawImage(currentImg, Math.floor(this.x), Math.floor(this.y), this.w, this.h); 
-        }
+        if (currentImg.complete) { ctx.drawImage(currentImg, Math.floor(this.x), Math.floor(this.y), this.w, this.h); }
         ctx.restore();
     },
     update: function() {
@@ -194,7 +179,6 @@ const pipes = {
             let topY = Math.floor(p.y);
             let bottomY = Math.floor(p.y + this.h + p.currentGap);
             let pipeX = Math.floor(p.x);
-
             ctx.strokeRect(pipeX, topY, this.w, this.h);
             ctx.strokeRect(pipeX, bottomY, this.w, this.h);
         }
@@ -205,11 +189,8 @@ const pipes = {
         
         if(frames % 90 == 0){
             let minY, maxY;
-            if (score < 47) {
-                minY = -240; maxY = -200; 
-            } else {
-                minY = -320; maxY = -120; 
-            }
+            if (score < 47) { minY = -240; maxY = -200; } 
+            else { minY = -320; maxY = -120; }
             let randomY = Math.floor(Math.random() * (maxY - minY + 1) + minY);
             this.position.push({ x: gameWidth, y: randomY, currentGap: this.gap, scored: false });
         }
@@ -244,7 +225,6 @@ const pipes = {
     }
 };
 
-// --- ENGINE ---
 function updateAudioData() {
     if (isAudioInitialized && !music.paused) {
         analyser.getByteFrequencyData(dataArray);
@@ -256,20 +236,16 @@ function updateAudioData() {
     }
 }
 
+// --- ENGINE ---
 function draw(){
     ctx.imageSmoothingEnabled = false;
     updateAudioData(); 
 
-    // --- DIMENSIONAL SHIFT LOGIC ---
+    // --- HARDWARE SHIFT LOGIC ---
     if (score >= 47 && hueShift < 160) {
-        // Slowly shifts the color spectrum over time to create a smooth transition
         hueShift += 1.5; 
-    }
-
-    ctx.save();
-    // Apply the hue rotation to the entire canvas (Targeting purple)
-    if (hueShift > 0) {
-        ctx.filter = `hue-rotate(${Math.floor(hueShift)}deg)`;
+        // Applies the shift directly to the CSS of the canvas DOM element
+        cvs.style.filter = `hue-rotate(${Math.floor(hueShift)}deg)`;
     }
 
     if (bgImg.complete) {
@@ -334,8 +310,6 @@ function draw(){
         ctx.fillStyle = "rgba(40, 255, 40, 0.8)"; ctx.font = "bold 18px Courier New";
         ctx.fillText("TAP TO RE-INITIATE", gameWidth/2, gameHeight/2 + 120);
     }
-
-    ctx.restore(); // Resets the hue filter for the next drawing cycle
 }
 
 function loop(){ starfield.update(); bird.update(); pipes.update(); draw(); frames++; requestAnimationFrame(loop); }
@@ -371,7 +345,10 @@ function handleAction(e) {
         justUnlockedBird2 = false; 
         isDead = false; bird.y = 220; bird.speed = 0; pipes.position = [];
         pipes.dx = 3.5; pipes.gap = 140; score = 0; frames = 0; 
-        hueShift = 0; // RESETS THE DIMENSION BACK TO GREEN
+        
+        // --- HARDWARE SHIFT RESET ---
+        hueShift = 0; 
+        cvs.style.filter = `hue-rotate(0deg)`;
         return;
     }
     if(!gamePlaying){ gamePlaying = true; music.play().catch(() => {}); }
