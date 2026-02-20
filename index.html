@@ -354,28 +354,44 @@ function draw(){
 
     if (score >= 47 && hueShift < 160) { hueShift += 1.5; cvs.style.filter = `hue-rotate(${Math.floor(hueShift)}deg)`; }
 
-    // --- UPDATED REACTIVE BACKGROUND ---
+    // --- ISOLATED LOGO PULSE LOGIC ---
     if (bgImg.complete) {
-        let baseScale = Math.max(gameWidth / bgImg.width, gameHeight / bgImg.height);
+        let scale = Math.max(gameWidth / bgImg.width, gameHeight / bgImg.height);
+        let x = (gameWidth / 2) - (bgImg.width / 2) * scale; 
+        let y = (gameHeight) - (bgImg.height * scale); 
+        
+        // 1. Draw the static background normally (No shadow, no glow, keeps dark space pitch black)
+        ctx.drawImage(bgImg, Math.floor(x), Math.floor(y), Math.floor(bgImg.width * scale), Math.floor(bgImg.height * scale));
+        
         let beat = (bassPulse > 130) ? ((bassPulse - 130) / 125) : 0;
         
-        // Pumping scale logic
-        let reactiveScale = baseScale * (1 + beat * 0.05); 
-        let x = (gameWidth / 2) - (bgImg.width / 2) * reactiveScale; 
-        let y = (gameHeight) - (bgImg.height * reactiveScale) + (beat * 10); 
-        
-        ctx.save();
-        ctx.drawImage(bgImg, Math.floor(x), Math.floor(y), Math.floor(bgImg.width * reactiveScale), Math.floor(bgImg.height * reactiveScale));
-        
-        // Additive Bloom Logic
+        // 2. ONLY if the beat is heavy, we add the bloom
         if (beat > 0) {
+            ctx.save();
+            
+            // Mask the canvas so we ONLY affect the bottom 180 pixels where the logo sits
+            ctx.beginPath();
+            ctx.rect(0, gameHeight - 180, gameWidth, 180);
+            ctx.clip();
+            
+            // Shift the center of scale to exactly where the logo is
+            ctx.translate(gameWidth / 2, gameHeight - 90);
+            let pump = 1 + (beat * 0.08); // Max 8% scale bump
+            ctx.scale(pump, pump);
+            ctx.translate(-gameWidth / 2, -(gameHeight - 90));
+
+            // Set blend mode to lighter. (Black + Black = Black, Green + Green = Bright Bloom)
             ctx.globalCompositeOperation = "lighter";
-            ctx.globalAlpha = beat * 0.8; 
-            ctx.shadowColor = "#28ff28";
-            ctx.shadowBlur = beat * 40 + 10;
-            ctx.drawImage(bgImg, Math.floor(x), Math.floor(y), Math.floor(bgImg.width * reactiveScale), Math.floor(bgImg.height * reactiveScale));
+            ctx.globalAlpha = beat * 0.7; // The harder the beat, the brighter the glow
+            
+            // Draw the background AGAIN over itself, but scaled up
+            ctx.drawImage(bgImg, Math.floor(x), Math.floor(y), Math.floor(bgImg.width * scale), Math.floor(bgImg.height * scale));
+            
+            // Draw it a second time for an intense neon burn effect on the logo
+            ctx.drawImage(bgImg, Math.floor(x), Math.floor(y), Math.floor(bgImg.width * scale), Math.floor(bgImg.height * scale));
+            
+            ctx.restore();
         }
-        ctx.restore();
     } else { ctx.fillStyle = "#000"; ctx.fillRect(0, 0, gameWidth, gameHeight); }
     
     starfield.draw(); pipes.draw(); bird.draw();
