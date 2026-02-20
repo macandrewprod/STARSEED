@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STARSEED - 47 Edition</title>
+    <title>STARSEED - Vessel Sync</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -44,18 +44,18 @@ ctx.imageSmoothingEnabled = false;
 container.appendChild(cvs);
 
 // --- ASSETS ---
-const birdImg = new Image(); birdImg.src = "bird.png"; 
+const bird1Img = new Image(); bird1Img.src = "bird.png"; 
+const bird2Img = new Image(); bird2Img.src = "bird2.png"; 
 const pipeImg = new Image(); pipeImg.src = "pillar.png"; 
 const bgImg = new Image(); bgImg.src = "bg.png"; 
 
-// AUDIO ENGINE
+// AUDIO
 const playlist = ["music.mp3", "music2.mp3", "music3.mp3", "music4.mp3"];
 let currentTrackIndex = 0;
 const music = new Audio();
 music.src = playlist[currentTrackIndex];
 music.loop = true;
 
-// 47 TRIGGER SOUND
 const sound47 = new Audio();
 sound47.src = "47.mp3";
 
@@ -66,6 +66,12 @@ let frames = 0;
 let score = 0;
 let finalScore = 0;
 let highScore = localStorage.getItem("starseedHighScore") || 0;
+
+// UNLOCK SYSTEM
+let bird2Unlocked = localStorage.getItem("bird2Unlocked") === "true";
+let selectedBird = 1; 
+let showUnlockAlert = false;
+let unlockAlertTimer = 0;
 
 // --- STARFIELD ---
 const starfield = {
@@ -105,7 +111,8 @@ starfield.init();
 const bird = {
     x: 65, y: 280, w: 45, h: 55, speed: 0, gravity: 0.28, jump: 5.3,    
     draw: function() {
-        if (birdImg.complete) { ctx.drawImage(birdImg, this.x, this.y, this.w, this.h); }
+        let currentImg = (selectedBird === 1) ? bird1Img : bird2Img;
+        if (currentImg.complete) { ctx.drawImage(currentImg, this.x, this.y, this.w, this.h); }
         else { ctx.fillStyle = "#28ff28"; ctx.fillRect(this.x, this.y, this.w, this.h); }
     },
     update: function() {
@@ -155,9 +162,14 @@ const pipes = {
                 p.scored = true;
                 score++;
                 
-                // --- 47 TRIGGER LOGIC ---
                 if (score === 47) {
-                    sound47.play().catch(e => console.log("47 trigger blocked"));
+                    sound47.play().catch(() => {});
+                    if (!bird2Unlocked) {
+                        bird2Unlocked = true;
+                        localStorage.setItem("bird2Unlocked", "true");
+                        showUnlockAlert = true;
+                        unlockAlertTimer = 180; 
+                    }
                 }
 
                 if (score % 10 === 0) { this.dx += 0.7; if (this.gap > 135) this.gap -= 5; }
@@ -181,20 +193,22 @@ function draw(){
     pipes.draw(); 
     bird.draw();
 
-    // HUD
     if (gamePlaying) {
-        ctx.fillStyle = "#28ff28"; 
-        ctx.font = "bold 38px Courier New";
-        ctx.textAlign = "center";
-        ctx.fillText(score, gameWidth/2, 70);
-
-        ctx.fillStyle = "rgba(40, 255, 40, 0.6)";
-        ctx.font = "bold 14px Courier New";
-        ctx.textAlign = "right";
-        ctx.fillText("BEST: " + highScore, gameWidth - 15, 25);
+        ctx.fillStyle = "#28ff28"; ctx.font = "bold 38px Courier New";
+        ctx.textAlign = "center"; ctx.fillText(score, gameWidth/2, 70);
     }
 
-    // START SCREEN
+    // THEMATIC UPDATE: "NEW VESSEL SYNCED"
+    if (showUnlockAlert) {
+        ctx.fillStyle = "rgba(40, 255, 40, 0.9)";
+        ctx.font = "bold 16px Courier New";
+        ctx.textAlign = "center";
+        ctx.fillText("NEW VESSEL SYNCED", gameWidth/2, gameHeight/2 - 100);
+        if (bird2Img.complete) ctx.drawImage(bird2Img, gameWidth/2 - 15, gameHeight/2 - 90, 30, 40);
+        unlockAlertTimer--;
+        if (unlockAlertTimer <= 0) showUnlockAlert = false;
+    }
+
     if(!gamePlaying && !isDead){
         ctx.fillStyle = "rgba(40, 255, 40, 0.9)"; 
         ctx.font = "bold 22px Courier New";
@@ -204,30 +218,37 @@ function draw(){
         ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
         ctx.font = "bold 14px Courier New";
         ctx.fillText("HIGH SCORE: " + highScore, gameWidth/2, gameHeight/2 + 80);
+
+        // THEMATIC UPDATE: "SELECT VESSEL"
+        ctx.fillStyle = "#FFF";
+        ctx.font = "bold 12px Courier New";
+        ctx.fillText("SELECT VESSEL", gameWidth/2, gameHeight/2 + 130);
+        
+        ctx.strokeStyle = (selectedBird === 1) ? "#28ff28" : "#444";
+        ctx.strokeRect(gameWidth/2 - 50, gameHeight/2 + 145, 40, 50);
+        if (bird1Img.complete) ctx.drawImage(bird1Img, gameWidth/2 - 45, gameHeight/2 + 155, 30, 35);
+        
+        if (bird2Unlocked) {
+            ctx.strokeStyle = (selectedBird === 2) ? "#28ff28" : "#444";
+            ctx.strokeRect(gameWidth/2 + 10, gameHeight/2 + 145, 40, 50);
+            if (bird2Img.complete) ctx.drawImage(bird2Img, gameWidth/2 + 15, gameHeight/2 + 155, 30, 35);
+        } else {
+            ctx.fillStyle = "#333";
+            ctx.fillRect(gameWidth/2 + 10, gameHeight/2 + 145, 40, 50);
+            ctx.fillStyle = "#666";
+            ctx.font = "bold 10px Courier New";
+            ctx.fillText("LOCKED", gameWidth/2 + 30, gameHeight/2 + 175);
+        }
     }
 
-    // DEATH SCREEN
     if(isDead){
-        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
         ctx.fillRect(0, 0, gameWidth, gameHeight);
-        
-        ctx.fillStyle = "#28ff28"; 
-        ctx.font = "bold 24px Courier New";
-        ctx.textAlign = "center";
-        ctx.fillText("SEQUENCE TERMINATED", gameWidth/2, gameHeight/2 - 40);
-        
-        ctx.fillStyle = "#FFF";
-        ctx.font = "bold 45px Courier New";
+        ctx.fillStyle = "#28ff28"; ctx.font = "bold 24px Courier New";
+        ctx.textAlign = "center"; ctx.fillText("SEQUENCE TERMINATED", gameWidth/2, gameHeight/2 - 40);
+        ctx.fillStyle = "#FFF"; ctx.font = "bold 45px Courier New";
         ctx.fillText("SCORE: " + finalScore, gameWidth/2, gameHeight/2 + 20);
-        
-        if(finalScore >= highScore && finalScore > 0) {
-            ctx.fillStyle = "#28ff28";
-            ctx.font = "bold 14px Courier New";
-            ctx.fillText("NEW HIGH SCORE DETECTED", gameWidth/2, gameHeight/2 + 45);
-        }
-
-        ctx.fillStyle = "rgba(40, 255, 40, 0.8)";
-        ctx.font = "bold 16px Courier New";
+        ctx.fillStyle = "rgba(40, 255, 40, 0.8)"; ctx.font = "bold 16px Courier New";
         ctx.fillText("TAP TO RE-INITIATE", gameWidth/2, gameHeight/2 + 85);
     }
 }
@@ -235,38 +256,40 @@ function draw(){
 function loop(){ starfield.update(); bird.update(); pipes.update(); draw(); frames++; requestAnimationFrame(loop); }
 
 function gameOver(){
-    gamePlaying = false;
-    isDead = true;
-    finalScore = score;
-    if(score > highScore) {
-        highScore = score;
-        localStorage.setItem("starseedHighScore", highScore);
-    }
-    
-    music.pause();
-    music.currentTime = 0;
-
+    gamePlaying = false; isDead = true; finalScore = score;
+    if(score > highScore) { highScore = score; localStorage.setItem("starseedHighScore", highScore); }
+    music.pause(); music.currentTime = 0;
     currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
     music.src = playlist[currentTrackIndex];
 }
 
 function handleAction(e) {
     if (e && e.type === "touchstart") e.preventDefault();
+    
+    if (!gamePlaying && !isDead) {
+        let touchX, touchY;
+        const rect = cvs.getBoundingClientRect();
+        if (e.type === "touchstart") {
+            touchX = (e.touches[0].clientX - rect.left) * (gameWidth / rect.width);
+            touchY = (e.touches[0].clientY - rect.top) * (gameHeight / rect.height);
+        } else {
+            touchX = (e.clientX - rect.left) * (gameWidth / rect.width);
+            touchY = (e.clientY - rect.top) * (gameHeight / rect.height);
+        }
+
+        if (touchX > gameWidth/2 - 50 && touchX < gameWidth/2 - 10 && touchY > gameHeight/2 + 145 && touchY < gameHeight/2 + 195) {
+            selectedBird = 1; return;
+        }
+        if (bird2Unlocked && touchX > gameWidth/2 + 10 && touchX < gameWidth/2 + 50 && touchY > gameHeight/2 + 145 && touchY < gameHeight/2 + 195) {
+            selectedBird = 2; return;
+        }
+    }
+
     if(isDead) {
-        isDead = false;
-        bird.y = 280;
-        bird.speed = 0;
-        pipes.position = [];
-        pipes.dx = 3.2;
-        pipes.gap = 165;
-        score = 0;
-        frames = 0;
-        return;
+        isDead = false; bird.y = 280; bird.speed = 0; pipes.position = [];
+        pipes.dx = 3.2; pipes.gap = 165; score = 0; frames = 0; return;
     }
-    if(!gamePlaying){
-        gamePlaying = true;
-        music.play().catch(() => {});
-    }
+    if(!gamePlaying){ gamePlaying = true; music.play().catch(() => {}); }
     bird.flap();
 }
 
