@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>STARSEED - Mobile Priority</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>STARSEED - Final Frame</title>
     <style>
         body, html {
             margin: 0;
@@ -21,17 +21,20 @@
         }
         #game-container {
             position: relative;
-            /* This forces the iPhone aspect ratio */
+            /* Recalculated to prevent vertical stretching */
+            height: 92vh; 
             aspect-ratio: 9 / 16;
-            height: 100vh;
-            max-width: 100vw;
             background-color: #0d0d0d;
-            box-shadow: 0 0 50px rgba(40, 255, 40, 0.1);
+            box-shadow: 0 0 40px rgba(40, 255, 40, 0.15);
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         canvas {
             display: block;
-            width: 100%;
-            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            /* Keeps the Starseed pixel art crisp */
             image-rendering: pixelated;
         }
     </style>
@@ -45,7 +48,7 @@ const container = document.getElementById('game-container');
 const cvs = document.createElement("canvas");
 const ctx = cvs.getContext("2d");
 
-// INTERNAL RESOLUTION (Fixed for consistent physics)
+// INTERNAL RESOLUTION (Fixed 9:16 ratio)
 const gameWidth = 360;
 const gameHeight = 640;
 const dpr = window.devicePixelRatio || 1;
@@ -72,12 +75,12 @@ let score = 0;
 const starfield = {
     particles: [],
     init: function() {
-        for(let i = 0; i < 100; i++) { 
+        for(let i = 0; i < 80; i++) { 
             this.particles.push({
                 x: Math.random() * gameWidth,
                 y: Math.random() * gameHeight,
                 size: Math.random() * 0.9 + 0.4, 
-                speed: Math.random() * 1.2 + 0.1,
+                speed: Math.random() * 1.0 + 0.1,
                 opacity: Math.random() 
             });
         }
@@ -88,7 +91,7 @@ const starfield = {
             p.opacity += (Math.random() - 0.5) * 0.1;
             if(p.opacity < 0.2) p.opacity = 0.2;
             if(p.opacity > 1) p.opacity = 1;
-            ctx.fillStyle = (i % 5 === 0) ? `rgba(40, 255, 40, ${p.opacity})` : `rgba(255, 255, 255, ${p.opacity})`;
+            ctx.fillStyle = (i % 6 === 0) ? `rgba(40, 255, 40, ${p.opacity})` : `rgba(255, 255, 255, ${p.opacity})`;
             ctx.fillRect(p.x, p.y, p.size, p.size);
         }
     },
@@ -104,13 +107,13 @@ starfield.init();
 
 // --- BIRD ---
 const bird = {
-    x: 60, y: 250, w: 45, h: 55, speed: 0, gravity: 0.28, jump: 5.2,    
+    x: 65, y: 280, w: 45, h: 55, speed: 0, gravity: 0.28, jump: 5.3,    
     draw: function() {
         if (birdImg.complete) { ctx.drawImage(birdImg, this.x, this.y, this.w, this.h); }
         else { ctx.fillStyle = "#28ff28"; ctx.fillRect(this.x, this.y, this.w, this.h); }
     },
     update: function() {
-        if (!gamePlaying) { this.y = 250 + Math.cos(frames/15) * 10; return; }
+        if (!gamePlaying) { this.y = 280 + Math.cos(frames/15) * 10; return; }
         this.speed += this.gravity;
         this.y += this.speed;
         if (this.y + this.h >= gameHeight || this.y <= 0) { gameOver(); }
@@ -120,13 +123,13 @@ const bird = {
 
 // --- PIPES ---
 const pipes = {
-    position: [], w: 55, h: 450, gap: 160, dx: 3.2, 
+    position: [], w: 55, h: 450, gap: 165, dx: 3.2, 
     draw: function() {
         for(let p of this.position){
             let topY = p.y;
             let bottomY = p.y + this.h + p.currentGap;
             ctx.save();
-            ctx.shadowColor = "#FFFFFF"; ctx.shadowBlur = 15;
+            ctx.shadowColor = "#FFFFFF"; ctx.shadowBlur = 12;
             if (pipeImg.complete) {
                 ctx.save();
                 ctx.translate(p.x + this.w / 2, topY + this.h / 2);
@@ -140,20 +143,20 @@ const pipes = {
     },
     update: function() {
         if(!gamePlaying) return;
-        if(frames % 100 == 0){
-            this.position.push({ x: gameWidth, y: Math.floor(Math.random() * (-150 - -350 + 1) + -350), currentGap: this.gap, scored: false });
+        if(frames % 105 == 0){
+            this.position.push({ x: gameWidth, y: Math.floor(Math.random() * (-160 - -340 + 1) + -340), currentGap: this.gap, scored: false });
         }
         for(let i = 0; i < this.position.length; i++){
             let p = this.position[i];
             p.x -= this.dx;
-            if( bird.x + 10 < p.x + this.w && bird.x + bird.w - 10 > p.x && 
-               (bird.y + 10 < p.y + this.h || bird.y + bird.h - 10 > p.y + this.h + p.currentGap)){
+            if( bird.x + 12 < p.x + this.w && bird.x + bird.w - 12 > p.x && 
+               (bird.y + 12 < p.y + this.h || bird.y + bird.h - 12 > p.y + this.h + p.currentGap)){
                 gameOver(); return; 
             }
             if(p.x + this.w <= 0){ this.position.shift(); i--; } 
             else if (p.x + this.w < bird.x && !p.scored) {
                 p.scored = true; score++;
-                if (score % 10 === 0) { this.dx += 0.7; if (this.gap > 130) this.gap -= 5; }
+                if (score % 10 === 0) { this.dx += 0.7; if (this.gap > 135) this.gap -= 5; }
             }
         }
     }
@@ -161,17 +164,21 @@ const pipes = {
 
 // --- MAIN LOOP ---
 function draw(){
-    if (bgImg.complete) { ctx.drawImage(bgImg, 0, 0, gameWidth, gameHeight); }
-    else { ctx.fillStyle = "#000"; ctx.fillRect(0, 0, gameWidth, gameHeight); }
+    if (bgImg.complete) { 
+        // Force the background to fit inside the game container only
+        ctx.drawImage(bgImg, 0, 0, gameWidth, gameHeight); 
+    } else { 
+        ctx.fillStyle = "#000"; ctx.fillRect(0, 0, gameWidth, gameHeight); 
+    }
     
     starfield.draw(); 
     pipes.draw(); 
     bird.draw();
 
     ctx.fillStyle = "#28ff28"; 
-    ctx.font = "bold 40px Courier New";
+    ctx.font = "bold 38px Courier New";
     ctx.textAlign = "center";
-    ctx.fillText(score, gameWidth/2, 80);
+    ctx.fillText(score, gameWidth/2, 70);
 
     if(!gamePlaying){
         ctx.fillStyle = "rgba(40, 255, 40, 0.9)"; 
@@ -183,8 +190,8 @@ function draw(){
 function loop(){ starfield.update(); bird.update(); pipes.update(); draw(); frames++; requestAnimationFrame(loop); }
 
 function gameOver(){
-    gamePlaying = false; bird.y = 250; bird.speed = 0;
-    pipes.position = []; pipes.dx = 3.2; pipes.gap = 160; score = 0; frames = 0;
+    gamePlaying = false; bird.y = 280; bird.speed = 0;
+    pipes.position = []; pipes.dx = 3.2; pipes.gap = 165; score = 0; frames = 0;
     music.pause(); music.currentTime = 0;
 }
 
