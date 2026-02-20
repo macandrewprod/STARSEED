@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STARSEED - The Record</title>
+    <title>STARSEED - High Score Edition</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -55,8 +55,6 @@ let isDead = false;
 let frames = 0;
 let score = 0;
 let finalScore = 0;
-
-// HIGH SCORE LOGIC: Checks the browser's "memory" for a saved record
 let highScore = localStorage.getItem("starseedHighScore") || 0;
 
 // --- STARFIELD ---
@@ -166,14 +164,13 @@ function draw(){
     pipes.draw(); 
     bird.draw();
 
-    // HUD: LIVE SCORE & HIGH SCORE
+    // HUD
     if (gamePlaying) {
         ctx.fillStyle = "#28ff28"; 
         ctx.font = "bold 38px Courier New";
         ctx.textAlign = "center";
         ctx.fillText(score, gameWidth/2, 70);
 
-        // SMALL HIGH SCORE IN TOP RIGHT
         ctx.fillStyle = "rgba(40, 255, 40, 0.6)";
         ctx.font = "bold 14px Courier New";
         ctx.textAlign = "right";
@@ -187,10 +184,9 @@ function draw(){
         ctx.textAlign = "center";
         ctx.fillText("INITIATE SEQUENCE", gameWidth/2, gameHeight/2 + 50);
         
-        // SHOW BEST ON START SCREEN
         ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
         ctx.font = "bold 14px Courier New";
-        ctx.fillText("SYSTEM RECORD: " + highScore, gameWidth/2, gameHeight/2 + 80);
+        ctx.fillText("HIGH SCORE: " + highScore, gameWidth/2, gameHeight/2 + 80);
     }
 
     // DEATH SCREEN
@@ -207,11 +203,10 @@ function draw(){
         ctx.font = "bold 45px Courier New";
         ctx.fillText("SCORE: " + finalScore, gameWidth/2, gameHeight/2 + 20);
         
-        // NEW RECORD ALERT
         if(finalScore >= highScore && finalScore > 0) {
             ctx.fillStyle = "#28ff28";
             ctx.font = "bold 14px Courier New";
-            ctx.fillText("NEW SYSTEM RECORD DETECTED", gameWidth/2, gameHeight/2 + 45);
+            ctx.fillText("NEW HIGH SCORE DETECTED", gameWidth/2, gameHeight/2 + 45);
         }
 
         ctx.fillStyle = "rgba(40, 255, 40, 0.8)";
@@ -226,13 +221,10 @@ function gameOver(){
     gamePlaying = false;
     isDead = true;
     finalScore = score;
-
-    // SAVE HIGH SCORE TO LOCALSTORAGE
     if(score > highScore) {
         highScore = score;
         localStorage.setItem("starseedHighScore", highScore);
     }
-
     music.pause();
     music.currentTime = 0;
 }
