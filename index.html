@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STARSEED - Tuned Difficulty</title>
+    <title>STARSEED - Connect & Share</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -91,8 +91,6 @@ let highScore = localStorage.getItem("starseedHighScore") || 0;
 let bird2Unlocked = localStorage.getItem("bird2Unlocked") === "true";
 let selectedBird = 1; 
 let justUnlockedBird2 = false; 
-
-// THE COLOR SHIFT VARIABLE
 let hueShift = 0;
 
 // --- STARFIELD ---
@@ -188,12 +186,8 @@ const pipes = {
         
         if(frames % 90 == 0){
             let minY, maxY;
-            if (score < 60) { 
-                minY = -240; maxY = -200; 
-            } else { 
-                // TUNED DROP: Extremes reduced so the player isn't forced into impossible dives at max speed
-                minY = -280; maxY = -160; 
-            }
+            if (score < 60) { minY = -240; maxY = -200; } 
+            else { minY = -280; maxY = -160; }
             let randomY = Math.floor(Math.random() * (maxY - minY + 1) + minY);
             this.position.push({ x: gameWidth, y: randomY, currentGap: this.gap, scored: false });
         }
@@ -219,14 +213,9 @@ const pipes = {
                         justUnlockedBird2 = true; 
                     }
                 }
-                
                 if (score % 10 === 0) { 
-                    if (score <= 40) {
-                        this.dx += 0.8; 
-                    }
-                    if (score >= 60 && this.gap > 115) { 
-                        this.gap -= 5; 
-                    }
+                    if (score <= 40) { this.dx += 0.8; }
+                    if (score >= 60 && this.gap > 115) { this.gap -= 5; }
                 }
             }
         }
@@ -249,17 +238,26 @@ function draw(){
     ctx.imageSmoothingEnabled = false;
     updateAudioData(); 
 
-    // THE DIMENSIONAL SHIFT
     if (score >= 47 && hueShift < 160) {
         hueShift += 1.5; 
         cvs.style.filter = `hue-rotate(${Math.floor(hueShift)}deg)`;
     }
 
+    // DRAW BACKGROUND & REACTIVE LOGO
     if (bgImg.complete) {
         let scale = Math.max(gameWidth / bgImg.width, gameHeight / bgImg.height);
         let x = (gameWidth / 2) - (bgImg.width / 2) * scale;
         let y = (gameHeight) - (bgImg.height * scale); 
+        
+        ctx.save();
+        // The logo pulse logic
+        if (bassPulse > 130) {
+            let glowIntensity = ((bassPulse - 130) / 125) * 50 + 10; 
+            ctx.shadowColor = "#28ff28";
+            ctx.shadowBlur = glowIntensity;
+        }
         ctx.drawImage(bgImg, Math.floor(x), Math.floor(y), Math.floor(bgImg.width * scale), Math.floor(bgImg.height * scale));
+        ctx.restore();
     } else {
         ctx.fillStyle = "#000"; ctx.fillRect(0, 0, gameWidth, gameHeight);
     }
@@ -314,8 +312,19 @@ function draw(){
             ctx.fillText("NEW HIGH SCORE DETECTED", gameWidth/2, gameHeight/2 + 40);
         }
 
-        ctx.fillStyle = "rgba(40, 255, 40, 0.8)"; ctx.font = "bold 18px Courier New";
-        ctx.fillText("TAP TO RE-INITIATE", gameWidth/2, gameHeight/2 + 120);
+        ctx.fillStyle = "rgba(40, 255, 40, 0.8)"; ctx.font = "bold 16px Courier New";
+        ctx.fillText("TAP TO RE-INITIATE", gameWidth/2, gameHeight/2 + 115);
+
+        // --- NEW SHARE SCORE BUTTON ---
+        ctx.fillStyle = "rgba(40, 255, 40, 0.1)";
+        ctx.fillRect(gameWidth/2 - 70, gameHeight/2 + 140, 140, 35);
+        ctx.strokeStyle = "#28ff28";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(gameWidth/2 - 70, gameHeight/2 + 140, 140, 35);
+        
+        ctx.fillStyle = "#28ff28";
+        ctx.font = "bold 16px Courier New";
+        ctx.fillText("SHARE SCORE", gameWidth/2, gameHeight/2 + 162);
     }
 }
 
@@ -335,8 +344,8 @@ function handleAction(e) {
     if (!isAudioInitialized) { initAudio(); }
     if (audioCtx && audioCtx.state === 'suspended') { audioCtx.resume(); }
 
-    if (!gamePlaying && !isDead) {
-        let touchX, touchY;
+    let touchX, touchY;
+    if (e && (e.type === "touchstart" || e.type === "mousedown")) {
         const rect = cvs.getBoundingClientRect();
         if (e.type === "touchstart") {
             touchX = (e.touches[0].clientX - rect.left) * (gameWidth / rect.width);
@@ -345,18 +354,36 @@ function handleAction(e) {
             touchX = (e.clientX - rect.left) * (gameWidth / rect.width);
             touchY = (e.clientY - rect.top) * (gameHeight / rect.height);
         }
+    }
+
+    if (!gamePlaying && !isDead && touchX && touchY) {
         if (touchX > gameWidth/2 - 55 && touchX < gameWidth/2 - 5 && touchY > 80 && touchY < 140) { selectedBird = 1; return; }
         if (bird2Unlocked && touchX > gameWidth/2 + 5 && touchX < gameWidth/2 + 55 && touchY > 80 && touchY < 140) { selectedBird = 2; return; }
     }
+    
     if(isDead) {
+        // --- SHARE BUTTON LOGIC ---
+        if (touchX && touchY && touchX > gameWidth/2 - 70 && touchX < gameWidth/2 + 70 && touchY > gameHeight/2 + 140 && touchY < gameHeight/2 + 175) {
+            if (navigator.share) {
+                navigator.share({
+                    title: 'STARSEED SEQUENCE',
+                    text: `I survived ${finalScore} cycles in the STARSEED sequence. Can you beat my record?`,
+                    url: window.location.href
+                }).catch(console.error);
+            } else {
+                alert(`You scored ${finalScore}! Copy this page link and dare the crew.`);
+            }
+            return; // Stops the game from restarting instantly
+        }
+
         justUnlockedBird2 = false; 
         isDead = false; bird.y = 220; bird.speed = 0; pipes.position = [];
         pipes.dx = 3.5; pipes.gap = 140; score = 0; frames = 0; 
-        
         hueShift = 0; 
         cvs.style.filter = `hue-rotate(0deg)`;
         return;
     }
+    
     if(!gamePlaying){ gamePlaying = true; music.play().catch(() => {}); }
     bird.flap();
 }
