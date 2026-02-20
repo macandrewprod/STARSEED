@@ -72,7 +72,7 @@ let highScore = localStorage.getItem("starseedHighScore") || 0;
 let bird2Unlocked = localStorage.getItem("bird2Unlocked") === "true";
 let selectedBird = 1; 
 
-// NEW: Flag to track if the bird was unlocked during the current run
+// FLAG: Track if the bird was unlocked during the current run
 let justUnlockedBird2 = false; 
 
 // --- STARFIELD ---
@@ -169,7 +169,6 @@ const pipes = {
                     if (!bird2Unlocked) {
                         bird2Unlocked = true;
                         localStorage.setItem("bird2Unlocked", "true");
-                        // We flag it here, but draw it on the death screen
                         justUnlockedBird2 = true; 
                     }
                 }
@@ -234,7 +233,7 @@ function draw(){
         if (justUnlockedBird2) {
             ctx.fillStyle = "rgba(40, 255, 40, 0.9)";
             ctx.font = "bold 16px Courier New";
-            ctx.fillText("NEW VESSEL SYNCED", gameWidth/2, gameHeight/2 + 30);
+            ctx.fillText("NEW VESSEL UNLOCKED", gameWidth/2, gameHeight/2 + 30);
             if (bird2Img.complete) ctx.drawImage(bird2Img, gameWidth/2 - 15, gameHeight/2 + 40, 30, 40);
         } 
         // OR DISPLAY HIGH SCORE IF NO UNLOCK HAPPENED
@@ -275,7 +274,6 @@ function handleAction(e) {
         if (bird2Unlocked && touchX > gameWidth/2 + 10 && touchX < gameWidth/2 + 50 && touchY > 80 && touchY < 130) { selectedBird = 2; return; }
     }
     if(isDead) {
-        // Reset the unlock flag so it doesn't stay on the death screen forever
         justUnlockedBird2 = false; 
         isDead = false; bird.y = 280; bird.speed = 0; pipes.position = [];
         pipes.dx = 3.2; pipes.gap = 165; score = 0; frames = 0; return;
