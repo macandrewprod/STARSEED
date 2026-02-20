@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STARSEED - Zoomed In</title>
+    <title>STARSEED - Neon Pillars</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -35,7 +35,7 @@ const container = document.getElementById('game-container');
 const cvs = document.createElement("canvas");
 const ctx = cvs.getContext("2d");
 
-// --- NEW ZOOMED-IN RESOLUTION ---
+// --- ZOOMED-IN RESOLUTION ---
 const gameWidth = 280;
 const gameHeight = 500;
 const dpr = window.devicePixelRatio || 1;
@@ -50,7 +50,7 @@ container.appendChild(cvs);
 // --- ASSETS ---
 const bird1Img = new Image(); bird1Img.src = "bird.png"; 
 const bird2Img = new Image(); bird2Img.src = "bird2.png"; 
-const pipeImg = new Image(); pipeImg.src = "pillar.png"; 
+// note: pillar.png is no longer used for drawing
 const bgImg = new Image(); bgImg.src = "bg.png"; 
 
 // AUDIO
@@ -108,7 +108,7 @@ const starfield = {
 };
 starfield.init();
 
-// --- VESSEL (LARGER & RE-TUNED) ---
+// --- VESSEL ---
 const bird = {
     x: 50, y: 220, w: 55, h: 65, speed: 0, gravity: 0.32, jump: 5.8,    
     draw: function() {
@@ -127,23 +127,26 @@ const bird = {
     flap: function() { this.speed = -this.jump; }
 };
 
-// --- PILLARS (WIDER & CLOSER) ---
+// --- PILLARS (NEON OUTLINES) ---
 const pipes = {
     position: [], w: 65, h: 400, gap: 140, dx: 3.5, 
     draw: function() {
         ctx.save();
-        ctx.shadowColor = "#FFFFFF"; ctx.shadowBlur = 10;
+        // Set Glow and Stroke style to Starseed Green
+        ctx.shadowColor = "#28ff28"; 
+        ctx.shadowBlur = 15;
+        ctx.strokeStyle = "#28ff28";
+        ctx.lineWidth = 3;
+
         for(let p of this.position){
             let topY = Math.floor(p.y);
             let bottomY = Math.floor(p.y + this.h + p.currentGap);
-            if (pipeImg.complete) {
-                ctx.save();
-                ctx.translate(Math.floor(p.x + this.w / 2), topY + this.h / 2);
-                ctx.scale(1, -1);
-                ctx.drawImage(pipeImg, -this.w / 2, -this.h / 2, this.w, this.h);
-                ctx.restore();
-                ctx.drawImage(pipeImg, Math.floor(p.x), bottomY, this.w, this.h);
-            }
+            let pipeX = Math.floor(p.x);
+
+            // Draw Top Pillar Outline
+            ctx.strokeRect(pipeX, topY, this.w, this.h);
+            // Draw Bottom Pillar Outline
+            ctx.strokeRect(pipeX, bottomY, this.w, this.h);
         }
         ctx.restore();
     },
@@ -267,7 +270,6 @@ function handleAction(e) {
             touchX = (e.clientX - rect.left) * (gameWidth / rect.width);
             touchY = (e.clientY - rect.top) * (gameHeight / rect.height);
         }
-        // Updated touch zones for larger selector
         if (touchX > gameWidth/2 - 55 && touchX < gameWidth/2 - 5 && touchY > 80 && touchY < 140) { selectedBird = 1; return; }
         if (bird2Unlocked && touchX > gameWidth/2 + 5 && touchX < gameWidth/2 + 55 && touchY > 80 && touchY < 140) { selectedBird = 2; return; }
     }
