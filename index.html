@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STARSEED - Balanced Difficulty</title>
+    <title>STARSEED - The Drop</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -125,9 +125,8 @@ const bird = {
     flap: function() { this.speed = -this.jump; }
 };
 
-// --- PILLARS (NARROWER NEON OUTLINES) ---
+// --- PILLARS ---
 const pipes = {
-    // Width reduced from 65 to 50 for easier traversal
     position: [], w: 50, h: 400, gap: 140, dx: 3.5, 
     draw: function() {
         ctx.save();
@@ -148,9 +147,25 @@ const pipes = {
     },
     update: function() {
         if(!gamePlaying) return;
+        
+        // --- LEVEL DESIGN LOGIC ---
         if(frames % 90 == 0){
-            this.position.push({ x: gameWidth, y: Math.floor(Math.random() * (-120 - -280 + 1) + -280), currentGap: this.gap, scored: false });
+            let minY, maxY;
+            
+            if (score < 47) {
+                // Intro Stage: Keeps the gaps steadily in the middle
+                minY = -240; 
+                maxY = -200; 
+            } else {
+                // The Drop: Wild level changes and hard fall-offs
+                minY = -320; // Very high gap
+                maxY = -120; // Very low gap
+            }
+            
+            let randomY = Math.floor(Math.random() * (maxY - minY + 1) + minY);
+            this.position.push({ x: gameWidth, y: randomY, currentGap: this.gap, scored: false });
         }
+        
         for(let i = 0; i < this.position.length; i++){
             let p = this.position[i];
             p.x -= this.dx;
