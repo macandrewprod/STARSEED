@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STARSEED - Speed Cap & 60 Drop</title>
+    <title>STARSEED - Tuned Difficulty</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -188,9 +188,12 @@ const pipes = {
         
         if(frames % 90 == 0){
             let minY, maxY;
-            // DELAYED DROP: Hard falls now wait until score 60
-            if (score < 60) { minY = -240; maxY = -200; } 
-            else { minY = -320; maxY = -120; }
+            if (score < 60) { 
+                minY = -240; maxY = -200; 
+            } else { 
+                // TUNED DROP: Extremes reduced so the player isn't forced into impossible dives at max speed
+                minY = -280; maxY = -160; 
+            }
             let randomY = Math.floor(Math.random() * (maxY - minY + 1) + minY);
             this.position.push({ x: gameWidth, y: randomY, currentGap: this.gap, scored: false });
         }
@@ -217,13 +220,10 @@ const pipes = {
                     }
                 }
                 
-                // --- TUNED SCALING LOGIC ---
                 if (score % 10 === 0) { 
-                    // SPEED CAP: Maxes out at 40 points
                     if (score <= 40) {
                         this.dx += 0.8; 
                     }
-                    // GAP SQUEEZE: Starts shrinking at 60 points
                     if (score >= 60 && this.gap > 115) { 
                         this.gap -= 5; 
                     }
@@ -249,7 +249,7 @@ function draw(){
     ctx.imageSmoothingEnabled = false;
     updateAudioData(); 
 
-    // THE DIMENSIONAL SHIFT (Still triggers at 47)
+    // THE DIMENSIONAL SHIFT
     if (score >= 47 && hueShift < 160) {
         hueShift += 1.5; 
         cvs.style.filter = `hue-rotate(${Math.floor(hueShift)}deg)`;
