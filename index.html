@@ -479,14 +479,15 @@ function updateAudioData() {
 function draw(){
     ctx.imageSmoothingEnabled = false; updateAudioData(); 
 
-    // --- DOUBLE HUE SHIFT LOGIC ---
-    let targetHue = 0;
-    if (score >= 100) { targetHue = 240; } 
-    else if (score >= 47) { targetHue = 160; } 
-    
-    if (hueShift < targetHue) { 
-        hueShift += 1.5; 
-        cvs.style.filter = `hue-rotate(${Math.floor(hueShift)}deg)`; 
+    // --- CONTINUOUS RAINBOW HUE SHIFT LOGIC (POST-100) ---
+    if (score >= 100) {
+        hueShift += 5; // Fast, continuous color cycle
+        cvs.style.filter = `hue-rotate(${Math.floor(hueShift) % 360}deg)`;
+    } else if (score >= 47) {
+        if (hueShift < 160) { 
+            hueShift += 1.5; 
+            cvs.style.filter = `hue-rotate(${Math.floor(hueShift)}deg)`; 
+        }
     }
 
     if (bgImg.complete) {
@@ -522,7 +523,6 @@ function draw(){
     if (gamePlaying || isDying) { ctx.fillStyle = "#28ff28"; ctx.font = "bold 45px Courier New"; ctx.textAlign = "center"; ctx.fillText(score, gameWidth/2, 80); }
 
     if(!gamePlaying && !isDead && !isDying){
-        // --- NEW NEON MENU BUTTON ---
         ctx.save();
         ctx.shadowColor = "#28ff28";
         ctx.shadowBlur = 15;
@@ -535,7 +535,6 @@ function draw(){
         ctx.fillStyle = "rgba(40, 255, 40, 0.9)"; ctx.font = "bold 24px Courier New"; ctx.textAlign = "center"; 
         ctx.fillText("INITIATE SEQUENCE", gameWidth/2, gameHeight/2 + 20);
         
-        // --- HIGH SCORE MOVED TO HUD ---
         ctx.fillStyle = "#fff"; ctx.font = "bold 14px Courier New"; 
         ctx.fillText("HIGH SCORE: " + highScore, gameWidth/2, gameHeight/2 + 50);
     }
