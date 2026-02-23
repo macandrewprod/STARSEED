@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="STARSEED">
+    
     <title>STARSEED - System Menu</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -95,7 +100,9 @@
         </div>
 
         <button id="menu-lb-btn" class="ui-btn" style="width: 220px; margin-bottom: 15px;">HIGHEST SCORES</button>
-        <button id="menu-mute-btn" class="ui-btn" style="width: 220px; margin-bottom: 25px; background: transparent; border: 2px solid #28ff28; color: #28ff28;">AUDIO: ON</button>
+        <button id="menu-mute-btn" class="ui-btn" style="width: 220px; margin-bottom: 15px; background: transparent; border: 2px solid #28ff28; color: #28ff28;">AUDIO: ON</button>
+        <button id="menu-fs-btn" class="ui-btn" style="width: 220px; margin-bottom: 25px; background: transparent; border: 2px solid #28ff28; color: #28ff28;">FULLSCREEN: OFF</button>
+        
         <button id="close-menu-btn" class="ui-btn" style="width: 220px; background: #444; color: #fff;">RETURN TO DECK</button>
     </div>
 
@@ -141,6 +148,7 @@ const closeLbBtn = document.getElementById("close-lb-btn");
 const menuLbBtn = document.getElementById("menu-lb-btn");
 const closeMenuBtn = document.getElementById("close-menu-btn");
 const menuMuteBtn = document.getElementById("menu-mute-btn");
+const menuFsBtn = document.getElementById("menu-fs-btn");
 const menuUserDisplay = document.getElementById("menu-user-display");
 const lbList = document.getElementById("leaderboard-list");
 
@@ -275,6 +283,35 @@ menuMuteBtn.addEventListener("click", () => {
     if (isMuted) { menuMuteBtn.innerText = "AUDIO: OFF"; menuMuteBtn.style.color = "#ff2828"; menuMuteBtn.style.borderColor = "#ff2828"; } 
     else { menuMuteBtn.innerText = "AUDIO: ON"; menuMuteBtn.style.color = "#28ff28"; menuMuteBtn.style.borderColor = "#28ff28"; }
 });
+
+// --- FULLSCREEN LOGIC ---
+menuFsBtn.addEventListener("click", () => {
+    let elem = document.documentElement;
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        if (elem.requestFullscreen) {
+            elem.requestFullscreen().catch(err => { console.log(`Error attempting to enable fullscreen: ${err.message}`); });
+        } else if (elem.webkitRequestFullscreen) { /* Safari Support */
+            elem.webkitRequestFullscreen();
+        }
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) { /* Safari Support */
+            document.webkitExitFullscreen();
+        }
+    }
+});
+
+// Listen for fullscreen state changes to update the button text properly
+function updateFsButton() {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+        menuFsBtn.innerText = "FULLSCREEN: ON";
+    } else {
+        menuFsBtn.innerText = "FULLSCREEN: OFF";
+    }
+}
+document.addEventListener('fullscreenchange', updateFsButton);
+document.addEventListener('webkitfullscreenchange', updateFsButton);
 
 menuLbBtn.addEventListener("click", () => { mainMenuUI.classList.add("hidden"); lbUI.classList.remove("hidden"); renderLeaderboard(); });
 closeLbBtn.addEventListener("click", () => { lbUI.classList.add("hidden"); mainMenuUI.classList.remove("hidden"); });
