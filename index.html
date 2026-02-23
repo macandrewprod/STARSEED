@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STARSEED - Cloud Profiles</title>
+    <title>STARSEED - System Menu</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -474,7 +474,16 @@ function updateAudioData() {
 function draw(){
     ctx.imageSmoothingEnabled = false; updateAudioData(); 
 
-    if (score >= 47 && hueShift < 160) { hueShift += 1.5; cvs.style.filter = `hue-rotate(${Math.floor(hueShift)}deg)`; }
+    // --- DOUBLE HUE SHIFT LOGIC ---
+    let targetHue = 0;
+    if (score >= 100) { targetHue = 240; } // 120 (Green) + 240 = 360 (Red)
+    else if (score >= 47) { targetHue = 160; } // Purple/Blue Shift
+    
+    // Smoothly transition colors
+    if (hueShift < targetHue) { 
+        hueShift += 1.5; 
+        cvs.style.filter = `hue-rotate(${Math.floor(hueShift)}deg)`; 
+    }
 
     if (bgImg.complete) {
         let scale = Math.max(gameWidth / bgImg.width, gameHeight / bgImg.height);
@@ -519,7 +528,6 @@ function draw(){
         ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; ctx.fillRect(0, 0, gameWidth, gameHeight);
         ctx.fillStyle = "#28ff28"; ctx.font = "bold 24px Courier New"; ctx.textAlign = "center"; ctx.fillText("SEQUENCE TERMINATED", gameWidth/2, gameHeight/2 - 80);
         
-        // FONT SCALED DOWN TO 36PX TO FIT 3-DIGIT SCORES
         ctx.fillStyle = "#FFF"; ctx.font = "bold 36px Courier New"; ctx.fillText("SCORE: " + finalScore, gameWidth/2, gameHeight/2 - 20);
         
         if (justUnlockedBird2) {
