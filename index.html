@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STARSEED - System Network</title>
+    <title>STARSEED - Cloud Profiles</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -93,8 +93,6 @@
             </div>
         </div>
 
-        <button id="menu-mode-btn" class="ui-btn" style="width: 220px; margin-bottom: 15px; background: transparent; border: 2px solid #28ff28; color: #28ff28;">MODE: CLASSIC</button>
-        
         <button id="menu-lb-btn" class="ui-btn" style="width: 220px; margin-bottom: 15px;">HIGHEST SCORES</button>
         <button id="menu-mute-btn" class="ui-btn" style="width: 220px; margin-bottom: 25px; background: transparent; border: 2px solid #28ff28; color: #28ff28;">AUDIO: ON</button>
         <button id="close-menu-btn" class="ui-btn" style="width: 220px; background: #444; color: #fff;">RETURN TO DECK</button>
@@ -142,7 +140,6 @@ const closeLbBtn = document.getElementById("close-lb-btn");
 const menuLbBtn = document.getElementById("menu-lb-btn");
 const closeMenuBtn = document.getElementById("close-menu-btn");
 const menuMuteBtn = document.getElementById("menu-mute-btn");
-const menuModeBtn = document.getElementById("menu-mode-btn");
 const lbList = document.getElementById("leaderboard-list");
 
 const v1Select = document.getElementById("v1-select");
@@ -178,11 +175,6 @@ let gamePlaying = false;
 let isDying = false; 
 let isDead = false; 
 let isViewingUI = false; 
-let isPressing = false; 
-
-// GAME MODES: 1 = Classic, 2 = Zero-G
-let currentMode = 1; 
-
 let frames = 0; let score = 0; let finalScore = 0;
 let highScore = localStorage.getItem("starseedHighScore") || 0;
 let bird2Unlocked = localStorage.getItem("bird2Unlocked") === "true";
@@ -273,20 +265,6 @@ function updateVesselMenu() {
 v1Select.addEventListener("click", () => { selectedBird = 1; updateVesselMenu(); });
 v2Select.addEventListener("click", () => { if (bird2Unlocked) { selectedBird = 2; updateVesselMenu(); } });
 
-// --- MODE TOGGLE LOGIC ---
-menuModeBtn.addEventListener("click", () => {
-    currentMode = (currentMode === 1) ? 2 : 1;
-    if (currentMode === 1) {
-        menuModeBtn.innerText = "MODE: CLASSIC";
-        menuModeBtn.style.color = "#28ff28";
-        menuModeBtn.style.borderColor = "#28ff28";
-    } else {
-        menuModeBtn.innerText = "MODE: ZERO-G";
-        menuModeBtn.style.color = "#ff2828";
-        menuModeBtn.style.borderColor = "#ff2828";
-    }
-});
-
 menuMuteBtn.addEventListener("click", () => {
     isMuted = !isMuted; music.muted = isMuted; sound47.muted = isMuted;
     if (isMuted) { menuMuteBtn.innerText = "AUDIO: OFF"; menuMuteBtn.style.color = "#ff2828"; menuMuteBtn.style.borderColor = "#ff2828"; } 
@@ -312,19 +290,15 @@ const starfield = {
         }
     },
     draw: function() {
-        // Star color shifts to red in Zero-G mode
-        let starColor = (currentMode === 1) ? "40, 255, 40" : "255, 40, 40";
         for(let p of this.particles) {
             p.opacity = p.baseOpacity + (Math.random() - 0.5) * 0.2;
             if(p.opacity < 0.1) p.opacity = 0.1;
-            ctx.fillStyle = (Math.random() > 0.8) ? `rgba(${starColor}, ${p.opacity})` : `rgba(255, 255, 255, ${p.opacity})`;
+            ctx.fillStyle = (Math.random() > 0.8) ? `rgba(40, 255, 40, ${p.opacity})` : `rgba(255, 255, 255, ${p.opacity})`;
             ctx.fillRect(Math.floor(p.x), Math.floor(p.y), p.size, p.size);
         }
     },
     update: function() {
         let globalSpeed = (gamePlaying || isDead || isDying) ? 2.5 : 0.3; 
-        if (currentMode === 2 && gamePlaying) globalSpeed *= 2.5; // Stars fly faster in Zero-G
-        
         for(let p of this.particles) {
             p.x -= (p.speed * globalSpeed);
             if(p.x + p.size < 0) { p.x = gameWidth; p.y = Math.random() * gameHeight; }
@@ -353,10 +327,9 @@ const vesselTrail = {
     },
     draw: function() {
         if (this.particles.length === 0) return;
-        let trailColor = (currentMode === 1) ? "40, 255, 40" : "255, 40, 40";
         ctx.save(); ctx.globalCompositeOperation = "lighter";
         for (let p of this.particles) {
-            ctx.fillStyle = `rgba(${trailColor}, ${p.alpha})`; ctx.beginPath(); ctx.rect(p.x, p.y, p.size, p.size); ctx.fill();
+            ctx.fillStyle = `rgba(40, 255, 40, ${p.alpha})`; ctx.beginPath(); ctx.rect(p.x, p.y, p.size, p.size); ctx.fill();
         }
         ctx.restore();
     }
@@ -364,29 +337,41 @@ const vesselTrail = {
 
 // --- VESSEL 2: "47" NUMBER TRAIL ---
 const numberTrail = {
-    particles: [], spawnTimer: 0,
+    particles: [],
+    spawnTimer: 0,
     spawn: function(x, y, w, h) {
-        this.spawnTimer++; if (this.spawnTimer % 3 !== 0) return; 
+        this.spawnTimer++;
+        if (this.spawnTimer % 3 !== 0) return; 
         this.particles.push({
-            x: x + 5, y: y + h / 2 + (Math.random() * 10 - 5),
+            x: x + 5, 
+            y: y + h / 2 + (Math.random() * 10 - 5),
             text: Math.random() > 0.5 ? "4" : "7",
-            vx: (Math.random() - 1.5) * 2.0, vy: (Math.random() - 0.5) * 1.0, 
-            size: Math.floor(Math.random() * 6 + 10), alpha: 1.0, decay: 0.02 + Math.random() * 0.02
+            vx: (Math.random() - 1.5) * 2.0, 
+            vy: (Math.random() - 0.5) * 1.0, 
+            size: Math.floor(Math.random() * 6 + 10), 
+            alpha: 1.0,
+            decay: 0.02 + Math.random() * 0.02
         });
     },
     update: function() {
         let globalSpeed = (gamePlaying || isDead || isDying) ? 2.5 : 0.3;
         for (let i = this.particles.length - 1; i >= 0; i--) {
-            let p = this.particles[i]; p.x -= (globalSpeed * 1.0) + p.vx; p.y += p.vy; p.alpha -= p.decay;
+            let p = this.particles[i];
+            p.x -= (globalSpeed * 1.0) + p.vx; 
+            p.y += p.vy;
+            p.alpha -= p.decay;
             if (p.alpha <= 0 || p.x < -20) { this.particles.splice(i, 1); }
         }
     },
     draw: function() {
         if (this.particles.length === 0) return;
-        let trailColor = (currentMode === 1) ? "40, 255, 40" : "255, 40, 40";
-        ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.save(); 
+        ctx.globalCompositeOperation = "lighter"; 
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
         for (let p of this.particles) {
-            ctx.font = `bold ${p.size}px Courier New`; ctx.fillStyle = `rgba(${trailColor}, ${p.alpha})`; ctx.fillText(p.text, p.x, p.y);
+            ctx.font = `bold ${p.size}px Courier New`;
+            ctx.fillStyle = `rgba(40, 255, 40, ${p.alpha})`;
+            ctx.fillText(p.text, p.x, p.y);
         }
         ctx.restore();
     }
@@ -398,19 +383,22 @@ function startDeathAnimation() {
     music.pause(); music.currentTime = 0; currentTrackIndex = (currentTrackIndex + 1) % playlist.length; music.src = playlist[currentTrackIndex];
 }
 
+// --- CLASSIC FLAPPY BIRD PHYSICS ---
 const bird = {
-    x: 50, y: 220, w: 55, h: 65, speed: 0, gravity: 0.25, jump: 4.6,     
+    x: 50, y: 220, w: 55, h: 65, 
+    speed: 0, 
+    gravity: 0.25, 
+    jump: 4.6,     
     draw: function() {
         ctx.save();
         let currentImg = (selectedBird === 1) ? bird1Img : bird2Img;
-        let themeColor = (currentMode === 1) ? "#28ff28" : "#ff2828";
-        
-        if (bassPulse > 130 && (gamePlaying || isDying)) { ctx.shadowColor = themeColor; ctx.shadowBlur = ((bassPulse - 130) / 125) * 25 + 5; } else { ctx.shadowBlur = 0; }
+        if (bassPulse > 130 && (gamePlaying || isDying)) { ctx.shadowColor = "#28ff28"; ctx.shadowBlur = ((bassPulse - 130) / 125) * 25 + 5; } else { ctx.shadowBlur = 0; }
         if (currentImg.complete) { ctx.drawImage(currentImg, Math.floor(this.x), Math.floor(this.y), this.w, this.h); }
         ctx.restore();
     },
     update: function() {
-        if (selectedBird === 1) { this.w = 55; this.h = 65; } else { this.w = 60; this.h = 60; } 
+        if (selectedBird === 1) { this.w = 55; this.h = 65; } 
+        else { this.w = 60; this.h = 60; } 
 
         if (gamePlaying || isDying || (!gamePlaying && !isDead && !isDying)) { 
             if (selectedBird === 1) { vesselTrail.spawn(this.x, this.y, this.w, this.h); } 
@@ -421,35 +409,26 @@ const bird = {
         if (isDead) return;
         
         if (isDying) {
-            this.y -= 6; if (this.y + this.h < -20) { isDying = false; gameOver(); }
+            this.y -= 6; 
+            if (this.y + this.h < -20) { isDying = false; gameOver(); }
             return;
         }
 
-        // --- DUAL PHYSICS SYSTEM ---
-        if (currentMode === 1) {
-            // CLASSIC FLAPPY BIRD
-            this.speed += this.gravity; 
-            if (this.speed > 8) this.speed = 8;
-        } else if (currentMode === 2) {
-            // ZERO-G HOLD THRUSTERS
-            if (isPressing) { this.speed -= 0.6; } 
-            else { this.speed += 0.6; } 
-            
-            if (this.speed > 6.5) this.speed = 6.5;
-            if (this.speed < -6.5) this.speed = -6.5;
-        }
-        
+        this.speed += this.gravity; 
+        if (this.speed > 8) this.speed = 8;
         this.y += this.speed;
+        
         if (this.y + this.h >= gameHeight || this.y <= 0) { startDeathAnimation(); }
     },
-    flap: function() { 
-        if (currentMode === 1) this.speed = -this.jump; 
-    }
+    flap: function() { this.speed = -this.jump; }
 };
 
-// --- MODE 1 OBSTACLES: CLASSIC PIPES ---
+// --- CLASSIC FLAPPY BIRD LEVEL DESIGN ---
 const pipes = {
-    position: [], w: 50, h: 400, gap: 125, dx: 2.5, opacity: 1.0, 
+    position: [], w: 50, h: 400, 
+    gap: 125, 
+    dx: 2.5,  
+    opacity: 1.0, 
     draw: function() {
         if (this.opacity <= 0) return; 
         ctx.save(); ctx.globalAlpha = this.opacity; ctx.shadowColor = "#28ff28"; ctx.shadowBlur = 15; ctx.lineWidth = 3; ctx.strokeStyle = "#28ff28";
@@ -460,8 +439,10 @@ const pipes = {
         ctx.restore();
     },
     update: function() {
-        if (isDying) { this.opacity -= 0.03; if (this.opacity < 0) this.opacity = 0; return; }
-        if(!gamePlaying || currentMode !== 1) return; 
+        if (isDying) {
+            this.opacity -= 0.03; if (this.opacity < 0) this.opacity = 0; return; 
+        }
+        if(!gamePlaying) return; 
 
         if(frames % 75 == 0){
             let minY = -300; let maxY = -120; 
@@ -482,51 +463,6 @@ const pipes = {
     }
 };
 
-// --- MODE 2 OBSTACLES: RED ASTEROID DEBRIS ---
-const asteroids = {
-    position: [], opacity: 1.0,
-    draw: function() {
-        if (this.opacity <= 0) return; 
-        ctx.save(); ctx.globalAlpha = this.opacity; ctx.shadowColor = "#ff2828"; ctx.shadowBlur = 15; ctx.fillStyle = "#ff2828";
-        for(let p of this.position){
-            ctx.fillRect(Math.floor(p.x), Math.floor(p.y), p.w, p.h);
-        }
-        ctx.restore();
-    },
-    update: function() {
-        if (isDying) { this.opacity -= 0.03; if (this.opacity < 0) this.opacity = 0; return; }
-        if (!gamePlaying || currentMode !== 2) return;
-        
-        // Spawn lasers randomly
-        if (frames % 35 === 0) {
-            this.position.push({
-                x: gameWidth,
-                y: Math.random() * (gameHeight - 15),
-                w: Math.random() * 40 + 30, // Random length streaks
-                h: 8,
-                dx: Math.random() * 4 + 5, // Fast variable speeds
-                scored: false
-            });
-        }
-        
-        for(let i = 0; i < this.position.length; i++){
-            let p = this.position[i]; p.x -= p.dx;
-            
-            // Death Collision
-            if(bird.x + 12 < p.x + p.w && bird.x + bird.w - 12 > p.x && bird.y + 12 < p.y + p.h && bird.y + bird.h - 12 > p.y){
-                startDeathAnimation(); return; 
-            }
-            
-            if(p.x + p.w <= 0){ this.position.shift(); i--; } 
-            else if (p.x + p.w < bird.x && !p.scored) {
-                p.scored = true; score++;
-                // In Zero-G mode, you also unlock the vessel at 47
-                if (score === 47) { sound47.play().catch(() => {}); if (!bird2Unlocked) { bird2Unlocked = true; localStorage.setItem("bird2Unlocked", "true"); justUnlockedBird2 = true; } }
-            }
-        }
-    }
-};
-
 function updateAudioData() {
     if (isAudioInitialized && !music.paused && !isMuted) {
         analyser.getByteFrequencyData(dataArray);
@@ -537,9 +473,6 @@ function updateAudioData() {
 
 function draw(){
     ctx.imageSmoothingEnabled = false; updateAudioData(); 
-
-    // Theme Color Control
-    let themeColor = (currentMode === 1) ? "#28ff28" : "#ff2828";
 
     if (score >= 47 && hueShift < 160) { hueShift += 1.5; cvs.style.filter = `hue-rotate(${Math.floor(hueShift)}deg)`; }
 
@@ -557,9 +490,7 @@ function draw(){
             ctx.translate(gameWidth / 2, gameHeight - 90);
             let pump = 1 + (beat * 0.08); ctx.scale(pump, pump);
             ctx.translate(-gameWidth / 2, -(gameHeight - 90));
-            
-            // The Bloom color matches the selected Game Mode
-            ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = beat * 0.7; ctx.shadowColor = themeColor; ctx.shadowBlur = beat * 30;
+            ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = beat * 0.7; 
             ctx.drawImage(bgImg, Math.floor(x), Math.floor(y), Math.floor(bgImg.width * scale), Math.floor(bgImg.height * scale));
             ctx.drawImage(bgImg, Math.floor(x), Math.floor(y), Math.floor(bgImg.width * scale), Math.floor(bgImg.height * scale));
             ctx.restore();
@@ -567,51 +498,48 @@ function draw(){
     } else { ctx.fillStyle = "#000"; ctx.fillRect(0, 0, gameWidth, gameHeight); }
     
     starfield.draw(); 
+    
     vesselTrail.update(); vesselTrail.draw(); 
     numberTrail.update(); numberTrail.draw();
     
-    pipes.draw(); 
-    asteroids.draw();
-    bird.draw();
+    pipes.draw(); bird.draw();
 
     if (isViewingUI || !username) return;
 
-    if (gamePlaying || isDying) { ctx.fillStyle = themeColor; ctx.font = "bold 45px Courier New"; ctx.textAlign = "center"; ctx.fillText(score, gameWidth/2, 80); }
+    if (gamePlaying || isDying) { ctx.fillStyle = "#28ff28"; ctx.font = "bold 45px Courier New"; ctx.textAlign = "center"; ctx.fillText(score, gameWidth/2, 80); }
 
     if(!gamePlaying && !isDead && !isDying){
-        ctx.fillStyle = themeColor; ctx.globalAlpha = 0.7; ctx.font = "bold 16px Courier New"; ctx.textAlign = "center"; 
+        ctx.fillStyle = "rgba(40, 255, 40, 0.7)"; ctx.font = "bold 16px Courier New"; ctx.textAlign = "center"; 
         ctx.fillText("[ MENU ]", gameWidth/2, 50);
-        
-        ctx.globalAlpha = 0.9; ctx.font = "bold 24px Courier New"; 
-        ctx.fillText("INITIATE SEQUENCE", gameWidth/2, gameHeight/2 + 20);
+        ctx.fillStyle = "rgba(40, 255, 40, 0.9)"; ctx.font = "bold 24px Courier New"; ctx.fillText("INITIATE SEQUENCE", gameWidth/2, gameHeight/2 + 20);
         ctx.fillStyle = "#fff"; ctx.font = "bold 12px Courier New"; ctx.fillText("USER: " + username, gameWidth/2, gameHeight/2 + 50);
-        ctx.globalAlpha = 1.0;
     }
 
     if(isDead){
         ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; ctx.fillRect(0, 0, gameWidth, gameHeight);
-        ctx.fillStyle = themeColor; ctx.font = "bold 24px Courier New"; ctx.textAlign = "center"; ctx.fillText("SEQUENCE TERMINATED", gameWidth/2, gameHeight/2 - 80);
+        ctx.fillStyle = "#28ff28"; ctx.font = "bold 24px Courier New"; ctx.textAlign = "center"; ctx.fillText("SEQUENCE TERMINATED", gameWidth/2, gameHeight/2 - 80);
+        
+        // FONT SCALED DOWN TO 36PX TO FIT 3-DIGIT SCORES
         ctx.fillStyle = "#FFF"; ctx.font = "bold 36px Courier New"; ctx.fillText("SCORE: " + finalScore, gameWidth/2, gameHeight/2 - 20);
         
         if (justUnlockedBird2) {
-            ctx.fillStyle = themeColor; ctx.globalAlpha = 0.9; ctx.font = "bold 16px Courier New"; ctx.fillText("NEW VESSEL UNLOCKED", gameWidth/2, gameHeight/2 + 20);
+            ctx.fillStyle = "rgba(40, 255, 40, 0.9)"; ctx.font = "bold 16px Courier New"; ctx.fillText("NEW VESSEL UNLOCKED", gameWidth/2, gameHeight/2 + 20);
             if (bird2Img.complete) ctx.drawImage(bird2Img, gameWidth/2 - 20, gameHeight/2 + 35, 40, 50);
         } else if (finalScore >= highScore && finalScore > 0) {
-            ctx.fillStyle = themeColor; ctx.font = "bold 14px Courier New"; ctx.fillText("NEW HIGH SCORE DETECTED", gameWidth/2, gameHeight/2 + 20);
+            ctx.fillStyle = "#28ff28"; ctx.font = "bold 14px Courier New"; ctx.fillText("NEW HIGH SCORE DETECTED", gameWidth/2, gameHeight/2 + 20);
         }
 
-        ctx.fillStyle = themeColor; ctx.globalAlpha = 0.8; ctx.font = "bold 16px Courier New"; ctx.fillText("TAP TO RE-INITIATE", gameWidth/2, gameHeight/2 + 105);
-        ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; ctx.fillRect(gameWidth/2 - 70, gameHeight/2 + 130, 140, 35);
-        ctx.strokeStyle = themeColor; ctx.lineWidth = 2; ctx.strokeRect(gameWidth/2 - 70, gameHeight/2 + 130, 140, 35);
-        ctx.fillStyle = themeColor; ctx.globalAlpha = 1.0; ctx.font = "bold 16px Courier New"; ctx.fillText("SHARE SCORE", gameWidth/2, gameHeight/2 + 152);
+        ctx.fillStyle = "rgba(40, 255, 40, 0.8)"; ctx.font = "bold 16px Courier New"; ctx.fillText("TAP TO RE-INITIATE", gameWidth/2, gameHeight/2 + 105);
+        ctx.fillStyle = "rgba(40, 255, 40, 0.1)"; ctx.fillRect(gameWidth/2 - 70, gameHeight/2 + 130, 140, 35);
+        ctx.strokeStyle = "#28ff28"; ctx.lineWidth = 2; ctx.strokeRect(gameWidth/2 - 70, gameHeight/2 + 130, 140, 35);
+        ctx.fillStyle = "#28ff28"; ctx.font = "bold 16px Courier New"; ctx.fillText("SHARE SCORE", gameWidth/2, gameHeight/2 + 152);
     }
 }
 
-function loop(){ starfield.update(); asteroids.update(); bird.update(); pipes.update(); draw(); frames++; requestAnimationFrame(loop); }
+function loop(){ starfield.update(); bird.update(); pipes.update(); draw(); frames++; requestAnimationFrame(loop); }
 
 function gameOver(){
     isDead = true; finalScore = score;
-    // Both modes currently write to the same cloud score leaderboard
     if(score > highScore) { highScore = score; localStorage.setItem("starseedHighScore", highScore); }
     pushScoreToCloud();
 }
@@ -635,8 +563,7 @@ function handleAction(e) {
     
     if(isDead) {
         if (touchX && touchY && touchX > gameWidth/2 - 70 && touchX < gameWidth/2 + 70 && touchY > gameHeight/2 + 130 && touchY < gameHeight/2 + 165) {
-            let modeName = currentMode === 1 ? "Classic" : "Zero-G";
-            if (navigator.share) { navigator.share({ title: 'STARSEED SEQUENCE', text: `[${username}] survived ${finalScore} cycles in ${modeName} Mode. Beat my record.`, url: window.location.href }).catch(console.error); } 
+            if (navigator.share) { navigator.share({ title: 'STARSEED SEQUENCE', text: `[${username}] survived ${finalScore} cycles. Beat my record.`, url: window.location.href }).catch(console.error); } 
             else { alert(`You scored ${finalScore}! Copy this page link and dare the crew.`); }
             return; 
         }
@@ -644,7 +571,6 @@ function handleAction(e) {
         justUnlockedBird2 = false; isDead = false; 
         bird.y = 180; bird.speed = 0; 
         pipes.position = []; pipes.dx = 2.5; pipes.gap = 125; pipes.opacity = 1.0; 
-        asteroids.position = []; asteroids.opacity = 1.0;
         score = 0; frames = 0; hueShift = 0; cvs.style.filter = `hue-rotate(0deg)`; 
         vesselTrail.particles = []; numberTrail.particles = [];
         return;
@@ -654,13 +580,9 @@ function handleAction(e) {
     bird.flap();
 }
 
-// Track Hold States for Zero-G Mode
-window.addEventListener("mousedown", (e) => { isPressing = true; handleAction(e); });
-window.addEventListener("mouseup", () => { isPressing = false; });
-window.addEventListener("touchstart", (e) => { isPressing = true; handleAction(e); }, { passive: false });
-window.addEventListener("touchend", () => { isPressing = false; });
-window.addEventListener("keydown", (e) => { if(e.code === "Space") { isPressing = true; handleAction(e); } });
-window.addEventListener("keyup", (e) => { if(e.code === "Space") isPressing = false; });
+window.addEventListener("mousedown", handleAction);
+window.addEventListener("touchstart", handleAction, { passive: false }); 
+window.addEventListener("keydown", (e) => { if(e.code === "Space") handleAction(); });
 
 loop();
 </script>
