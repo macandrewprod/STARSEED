@@ -387,8 +387,8 @@ function startDeathAnimation() {
 const bird = {
     x: 50, y: 220, w: 55, h: 65, 
     speed: 0, 
-    gravity: 0.25, // Tweaked for classic weight
-    jump: 4.6,     // Tweaked for sharp, classic flap
+    gravity: 0.25, 
+    jump: 4.6,     
     draw: function() {
         ctx.save();
         let currentImg = (selectedBird === 1) ? bird1Img : bird2Img;
@@ -397,7 +397,6 @@ const bird = {
         ctx.restore();
     },
     update: function() {
-        // DYNAMIC ASPECT RATIO FIX (Vessel 2 is now a perfect square)
         if (selectedBird === 1) { this.w = 55; this.h = 65; } 
         else { this.w = 60; this.h = 60; } 
 
@@ -415,9 +414,8 @@ const bird = {
             return;
         }
 
-        // TERMINAL VELOCITY ADDED
         this.speed += this.gravity; 
-        if (this.speed > 8) this.speed = 8; // Prevents infinitely fast falling
+        if (this.speed > 8) this.speed = 8;
         this.y += this.speed;
         
         if (this.y + this.h >= gameHeight || this.y <= 0) { startDeathAnimation(); }
@@ -428,8 +426,8 @@ const bird = {
 // --- CLASSIC FLAPPY BIRD LEVEL DESIGN ---
 const pipes = {
     position: [], w: 50, h: 400, 
-    gap: 125, // Fixed, non-shrinking gap
-    dx: 2.5,  // Constant, non-accelerating speed
+    gap: 125, 
+    dx: 2.5,  
     opacity: 1.0, 
     draw: function() {
         if (this.opacity <= 0) return; 
@@ -446,9 +444,8 @@ const pipes = {
         }
         if(!gamePlaying) return; 
 
-        // Spawn interval adjusted to match the new 2.5 horizontal speed
         if(frames % 75 == 0){
-            let minY = -300; let maxY = -120; // Expanded to force wilder climbs and drops
+            let minY = -300; let maxY = -120; 
             this.position.push({ x: gameWidth, y: Math.floor(Math.random() * (maxY - minY + 1) + minY), currentGap: this.gap, scored: false });
         }
         
@@ -461,9 +458,6 @@ const pipes = {
             else if (p.x + this.w < bird.x && !p.scored) {
                 p.scored = true; score++;
                 if (score === 47) { sound47.play().catch(() => {}); if (!bird2Unlocked) { bird2Unlocked = true; localStorage.setItem("bird2Unlocked", "true"); justUnlockedBird2 = true; } }
-                
-                // PROGRESSIVE DIFFICULTY REMOVED to match original game mechanics. 
-                // The speed and gap will never change.
             }
         }
     }
@@ -524,7 +518,9 @@ function draw(){
     if(isDead){
         ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; ctx.fillRect(0, 0, gameWidth, gameHeight);
         ctx.fillStyle = "#28ff28"; ctx.font = "bold 24px Courier New"; ctx.textAlign = "center"; ctx.fillText("SEQUENCE TERMINATED", gameWidth/2, gameHeight/2 - 80);
-        ctx.fillStyle = "#FFF"; ctx.font = "bold 50px Courier New"; ctx.fillText("SCORE: " + finalScore, gameWidth/2, gameHeight/2 - 20);
+        
+        // FONT SCALED DOWN TO 36PX TO FIT 3-DIGIT SCORES
+        ctx.fillStyle = "#FFF"; ctx.font = "bold 36px Courier New"; ctx.fillText("SCORE: " + finalScore, gameWidth/2, gameHeight/2 - 20);
         
         if (justUnlockedBird2) {
             ctx.fillStyle = "rgba(40, 255, 40, 0.9)"; ctx.font = "bold 16px Courier New"; ctx.fillText("NEW VESSEL UNLOCKED", gameWidth/2, gameHeight/2 + 20);
@@ -572,7 +568,6 @@ function handleAction(e) {
             return; 
         }
 
-        // RESET PHYSICS TO THE NEW VALUES ON DEATH
         justUnlockedBird2 = false; isDead = false; 
         bird.y = 180; bird.speed = 0; 
         pipes.position = []; pipes.dx = 2.5; pipes.gap = 125; pipes.opacity = 1.0; 
