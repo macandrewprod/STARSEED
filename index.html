@@ -23,9 +23,9 @@
         }
         #game-container {
             position: relative; width: 100vw; height: 100vh;
-            max-width: 450px; max-height: 850px;
+            /* Max constraints removed so the canvas stretches edge-to-edge naturally */
             display: flex; justify-content: center; align-items: center;
-            background-color: #0d0d0d;
+            background-color: #000;
         }
         canvas {
             display: block; width: 100%; height: 100%;
@@ -133,7 +133,13 @@ const db = firebase.database();
 const cvs = document.getElementById("gameCanvas");
 const ctx = cvs.getContext("2d");
 
-const gameWidth = 280; const gameHeight = 500;
+// --- DYNAMIC ASPECT RATIO SCALER ---
+const gameWidth = 280; 
+let screenRatio = window.innerHeight / window.innerWidth;
+if (screenRatio < 1.5) screenRatio = 1.5; // Stops desktop from squishing
+if (screenRatio > 2.5) screenRatio = 2.5; // Stops crazy tall ultra-wides from stretching too far
+const gameHeight = gameWidth * screenRatio;
+
 const dpr = window.devicePixelRatio || 1;
 cvs.width = gameWidth * dpr; cvs.height = gameHeight * dpr;
 ctx.scale(dpr, dpr); ctx.imageSmoothingEnabled = false;
@@ -284,31 +290,37 @@ menuMuteBtn.addEventListener("click", () => {
     else { menuMuteBtn.innerText = "AUDIO: ON"; menuMuteBtn.style.color = "#28ff28"; menuMuteBtn.style.borderColor = "#28ff28"; }
 });
 
-// --- FULLSCREEN LOGIC ---
+// FULLSCREEN HANDLER
 menuFsBtn.addEventListener("click", () => {
     let elem = document.documentElement;
+    let fsSupported = false;
+
     if (!document.fullscreenElement && !document.webkitFullscreenElement) {
         if (elem.requestFullscreen) {
-            elem.requestFullscreen().catch(err => { console.log(`Error attempting to enable fullscreen: ${err.message}`); });
-        } else if (elem.webkitRequestFullscreen) { /* Safari Support */
+            elem.requestFullscreen().catch(err => { 
+                alert("To play Fullscreen on iPhone: Tap the Safari Share icon at the bottom and select 'Add to Home Screen'!"); 
+            });
+            fsSupported = true;
+        } else if (elem.webkitRequestFullscreen) { 
             elem.webkitRequestFullscreen();
+            fsSupported = true;
+        }
+        
+        if (!fsSupported) {
+            alert("To play Fullscreen on iPhone: Tap the Safari Share icon at the bottom and select 'Add to Home Screen'!");
         }
     } else {
         if (document.exitFullscreen) {
             document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) { /* Safari Support */
+        } else if (document.webkitExitFullscreen) {
             document.webkitExitFullscreen();
         }
     }
 });
 
-// Listen for fullscreen state changes to update the button text properly
 function updateFsButton() {
-    if (document.fullscreenElement || document.webkitFullscreenElement) {
-        menuFsBtn.innerText = "FULLSCREEN: ON";
-    } else {
-        menuFsBtn.innerText = "FULLSCREEN: OFF";
-    }
+    if (document.fullscreenElement || document.webkitFullscreenElement) { menuFsBtn.innerText = "FULLSCREEN: ON"; } 
+    else { menuFsBtn.innerText = "FULLSCREEN: OFF"; }
 }
 document.addEventListener('fullscreenchange', updateFsButton);
 document.addEventListener('webkitfullscreenchange', updateFsButton);
@@ -349,7 +361,6 @@ const starfield = {
 };
 starfield.init();
 
-// --- VESSEL 1: GREEN STAR TRAIL ---
 const vesselTrail = {
     particles: [], spawnTimer: 0,
     spawn: function(x, y, w, h) {
@@ -377,7 +388,6 @@ const vesselTrail = {
     }
 };
 
-// --- VESSEL 2: "47" NUMBER TRAIL ---
 const numberTrail = {
     particles: [],
     spawnTimer: 0,
@@ -425,9 +435,8 @@ function startDeathAnimation() {
     music.pause(); music.currentTime = 0; currentTrackIndex = (currentTrackIndex + 1) % playlist.length; music.src = playlist[currentTrackIndex];
 }
 
-// --- CLASSIC FLAPPY BIRD PHYSICS ---
 const bird = {
-    x: 50, y: 220, w: 55, h: 65, 
+    x: 50, y: gameHeight / 2 - 30, w: 55, h: 65, 
     speed: 0, 
     gravity: 0.25, 
     jump: 4.6,     
@@ -447,7 +456,7 @@ const bird = {
             else if (selectedBird === 2) { numberTrail.spawn(this.x, this.y, this.w, this.h); }
         }
 
-        if (!gamePlaying && !isDead && !isDying) { this.y = 180 + Math.cos(frames/15) * 10; return; }
+        if (!gamePlaying && !isDead && !isDying) { this.y = (gameHeight / 2 - 70) + Math.cos(frames/15) * 10; return; }
         if (isDead) return;
         
         if (isDying) {
@@ -465,9 +474,9 @@ const bird = {
     flap: function() { this.speed = -this.jump; }
 };
 
-// --- CLASSIC FLAPPY BIRD LEVEL DESIGN ---
+// DYNAMIC PIPE SPAWN SCALING
 const pipes = {
-    position: [], w: 50, h: 400, 
+    position: [], w: 50, h: 800, // Massive height to cover tall dynamic screens
     gap: 125, 
     dx: 2.5,  
     opacity: 1.0, 
@@ -487,7 +496,7 @@ const pipes = {
         if(!gamePlaying) return; 
 
         if(frames % 75 == 0){
-            let minY = -300; let maxY = -120; 
+            let minY = -700; let maxY = -520; 
             this.position.push({ x: gameWidth, y: Math.floor(Math.random() * (maxY - minY + 1) + minY), currentGap: this.gap, scored: false });
         }
         
@@ -516,9 +525,8 @@ function updateAudioData() {
 function draw(){
     ctx.imageSmoothingEnabled = false; updateAudioData(); 
 
-    // --- CONTINUOUS RAINBOW HUE SHIFT LOGIC (POST-100) ---
     if (score >= 100) {
-        hueShift += 5; // Fast, continuous color cycle
+        hueShift += 5; 
         cvs.style.filter = `hue-rotate(${Math.floor(hueShift) % 360}deg)`;
     } else if (score >= 47) {
         if (hueShift < 160) { 
@@ -537,10 +545,13 @@ function draw(){
         let beat = (bassPulse > 130) ? ((bassPulse - 130) / 125) : 0;
         
         if (beat > 0) {
-            ctx.save(); ctx.beginPath(); ctx.rect(0, gameHeight - 180, gameWidth, 180); ctx.clip();
-            ctx.translate(gameWidth / 2, gameHeight - 90);
+            let clipHeight = 180 * scale;
+            let logoYCenter = gameHeight - (90 * scale);
+            
+            ctx.save(); ctx.beginPath(); ctx.rect(0, gameHeight - clipHeight, gameWidth, clipHeight); ctx.clip();
+            ctx.translate(gameWidth / 2, logoYCenter);
             let pump = 1 + (beat * 0.08); ctx.scale(pump, pump);
-            ctx.translate(-gameWidth / 2, -(gameHeight - 90));
+            ctx.translate(-gameWidth / 2, -logoYCenter);
             ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = beat * 0.7; 
             ctx.drawImage(bgImg, Math.floor(x), Math.floor(y), Math.floor(bgImg.width * scale), Math.floor(bgImg.height * scale));
             ctx.drawImage(bgImg, Math.floor(x), Math.floor(y), Math.floor(bgImg.width * scale), Math.floor(bgImg.height * scale));
@@ -557,7 +568,10 @@ function draw(){
 
     if (isViewingUI || !username) return;
 
-    if (gamePlaying || isDying) { ctx.fillStyle = "#28ff28"; ctx.font = "bold 45px Courier New"; ctx.textAlign = "center"; ctx.fillText(score, gameWidth/2, 80); }
+    if (gamePlaying || isDying) { 
+        ctx.fillStyle = "#28ff28"; ctx.font = "bold 45px Courier New"; ctx.textAlign = "center"; 
+        ctx.fillText(score, gameWidth/2, gameHeight * 0.15); 
+    }
 
     if(!gamePlaying && !isDead && !isDying){
         ctx.save();
@@ -566,7 +580,7 @@ function draw(){
         ctx.fillStyle = "#28ff28"; 
         ctx.font = "bold 18px Courier New"; 
         ctx.textAlign = "center"; 
-        ctx.fillText("[ MENU ]", gameWidth/2, 50);
+        ctx.fillText("[ MENU ]", gameWidth/2, 60);
         ctx.restore();
         
         ctx.fillStyle = "rgba(40, 255, 40, 0.9)"; ctx.font = "bold 24px Courier New"; ctx.textAlign = "center"; 
@@ -619,7 +633,7 @@ function handleAction(e) {
 
     if (isDying) return;
 
-    if (!gamePlaying && !isDead && touchY && touchY < 70 && touchX > gameWidth/2 - 50 && touchX < gameWidth/2 + 50) { openMainMenu(); return; }
+    if (!gamePlaying && !isDead && touchY && touchY < 90 && touchX > gameWidth/2 - 60 && touchX < gameWidth/2 + 60) { openMainMenu(); return; }
     
     if(isDead) {
         if (touchX && touchY && touchX > gameWidth/2 - 70 && touchX < gameWidth/2 + 70 && touchY > gameHeight/2 + 130 && touchY < gameHeight/2 + 165) {
@@ -629,7 +643,7 @@ function handleAction(e) {
         }
 
         justUnlockedBird2 = false; isDead = false; 
-        bird.y = 180; bird.speed = 0; 
+        bird.y = gameHeight / 2 - 70; bird.speed = 0; 
         pipes.position = []; pipes.dx = 2.5; pipes.gap = 125; pipes.opacity = 1.0; 
         score = 0; frames = 0; hueShift = 0; cvs.style.filter = `hue-rotate(0deg)`; 
         vesselTrail.particles = []; numberTrail.particles = [];
